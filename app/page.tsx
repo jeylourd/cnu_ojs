@@ -1,3 +1,6 @@
+import Image from "next/image";
+import Link from "next/link";
+
 export default function Home() {
   const modules = [
     {
@@ -22,37 +25,67 @@ export default function Home() {
   ];
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-6 py-12 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+    <main className="min-h-screen bg-red-950 px-6 py-8 text-yellow-100">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-10">
-        <header className="space-y-4">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
+        <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-yellow-500/50 bg-red-900 px-5 py-4">
+          <div className="flex items-center gap-3">
+            <Image src="/cnu-logo.png" alt="Cebu Normal University logo" width={52} height={52} className="rounded-full border border-yellow-400/60" />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-yellow-300">CNU OJS</p>
+              <p className="text-sm text-yellow-100/80">Open Journal Systems Platform</p>
+            </div>
+          </div>
+          <nav className="flex flex-wrap items-center gap-2 text-sm">
+            <Link
+              href="/issues"
+              className="rounded-full border border-yellow-400/50 px-3 py-1.5 font-medium text-yellow-200 transition hover:bg-red-800"
+            >
+              Issues
+            </Link>
+            <Link
+              href="/login"
+              className="rounded-full border border-yellow-400/50 px-3 py-1.5 font-medium text-yellow-200 transition hover:bg-red-800"
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/register"
+              className="rounded-full bg-yellow-400 px-3 py-1.5 font-semibold text-red-950 transition hover:bg-yellow-300"
+            >
+              Register
+            </Link>
+          </nav>
+        </header>
+
+        <section className="space-y-4">
+          <p className="text-sm font-medium uppercase tracking-[0.2em] text-yellow-300">
             CNU OJS
           </p>
-          <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">Open Journal System starter app</h1>
-          <p className="max-w-2xl text-base leading-7 text-zinc-600 dark:text-zinc-300">
+          <h1 className="text-3xl font-semibold leading-tight text-yellow-50 sm:text-4xl">Open Journal System starter app</h1>
+          <p className="max-w-2xl text-base leading-7 text-yellow-100/85">
             Built with Next.js App Router, Prisma ORM, and Supabase Postgres for managing journals,
             submissions, and peer review workflows.
           </p>
-        </header>
+        </section>
 
         <section className="grid gap-4 sm:grid-cols-3">
           {modules.map((module) => (
             <article
               key={module.title}
-              className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+              className="rounded-2xl border border-yellow-500/40 bg-red-900/70 p-5 shadow-sm"
             >
-              <h2 className="text-lg font-semibold">{module.title}</h2>
-              <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">{module.description}</p>
+              <h2 className="text-lg font-semibold text-yellow-100">{module.title}</h2>
+              <p className="mt-2 text-sm leading-6 text-yellow-100/80">{module.description}</p>
             </article>
           ))}
         </section>
 
-        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <h2 className="text-xl font-semibold">Setup checklist</h2>
-          <ul className="mt-4 space-y-3 text-sm leading-6 text-zinc-700 dark:text-zinc-300">
+        <section className="rounded-2xl border border-yellow-500/40 bg-red-900/70 p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-yellow-100">Setup checklist</h2>
+          <ul className="mt-4 space-y-3 text-sm leading-6 text-yellow-100/85">
             {setupChecklist.map((item) => (
               <li key={item} className="flex items-start gap-3">
-                <span className="mt-2 h-1.5 w-1.5 rounded-full bg-zinc-500" aria-hidden="true" />
+                <span className="mt-2 h-1.5 w-1.5 rounded-full bg-yellow-400" aria-hidden="true" />
                 <span>{item}</span>
               </li>
             ))}
@@ -60,25 +93,31 @@ export default function Home() {
         </section>
 
         <section className="flex flex-wrap items-center gap-3 text-sm">
-          <a
+          <Link
             href="/login"
-            className="rounded-full bg-zinc-900 px-4 py-2 font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+            className="rounded-full bg-yellow-400 px-4 py-2 font-semibold text-red-950 transition hover:bg-yellow-300"
           >
             Sign in
-          </a>
-          <a
+          </Link>
+          <Link
             href="/dashboard"
-            className="rounded-full border border-zinc-300 px-4 py-2 font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="rounded-full border border-yellow-400/50 px-4 py-2 font-medium text-yellow-100 transition hover:bg-red-900"
           >
             Dashboard
-          </a>
-          <a
+          </Link>
+          <Link
             href="/api/health"
-            className="rounded-full border border-zinc-300 px-4 py-2 font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="rounded-full border border-yellow-400/50 px-4 py-2 font-medium text-yellow-100 transition hover:bg-red-900"
           >
             API health endpoint
-          </a>
-          <span className="text-zinc-500 dark:text-zinc-400">Next step: connect auth and role-based dashboards.</span>
+          </Link>
+          <Link
+            href="/issues"
+            className="rounded-full border border-yellow-400/50 px-4 py-2 font-medium text-yellow-100 transition hover:bg-red-900"
+          >
+            Published issues
+          </Link>
+          <span className="text-yellow-100/75">Next step: connect auth and role-based dashboards.</span>
         </section>
       </div>
     </main>

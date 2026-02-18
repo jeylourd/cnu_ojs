@@ -45,6 +45,7 @@ model User {
   submissions     Submission[] @relation("AuthorSubmissions")
   reviews         Review[]
   managedJournals Journal[]    @relation("JournalEditor")
+  decisionsMade   EditorialDecision[]
   accounts        Account[]
   sessions        Session[]
 }
@@ -60,12 +61,14 @@ model Journal {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   submissions  Submission[]
+  issues       Issue[]
 }
 
 model Submission {
   id             String            @id @default(cuid())
   journalId      String
   authorId       String
+  issueId        String?
   title          String
   abstract       String
   keywords       String[]
@@ -76,7 +79,42 @@ model Submission {
   updatedAt      DateTime          @updatedAt
   journal        Journal           @relation(fields: [journalId], references: [id])
   author         User              @relation("AuthorSubmissions", fields: [authorId], references: [id])
+  issue          Issue?            @relation(fields: [issueId], references: [id], onDelete: SetNull)
   reviews        Review[]
+  decisions      EditorialDecision[]
+}
+
+model Issue {
+  id          String       @id @default(cuid())
+  journalId   String
+  volume      Int
+  issueNumber Int
+  year        Int
+  title       String?
+  publishedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  journal     Journal      @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  submissions Submission[]
+
+  @@unique([journalId, volume, issueNumber, year])
+  @@index([journalId, publishedAt])
+}
+
+model EditorialDecision {
+  id            String           @id @default(cuid())
+  submissionId  String
+  decidedById   String
+  status        SubmissionStatus
+  notes         String?
+  decidedAt     DateTime         @default(now())
+  createdAt     DateTime         @default(now())
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  decidedBy  User       @relation(fields: [decidedById], references: [id], onDelete: Cascade)
+
+  @@index([submissionId, decidedAt])
 }
 
 model Review {

@@ -15,12 +15,14 @@ async function main() {
       name,
       role: "ADMIN",
       passwordHash,
+      emailVerified: new Date(),
     },
     create: {
       email,
       name,
       role: "ADMIN",
       passwordHash,
+      emailVerified: new Date(),
     },
   });
 

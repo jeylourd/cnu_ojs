@@ -29,6 +29,12 @@ Required keys:
 - `DIRECT_URL`
 - `AUTH_SECRET`
 - `AUTH_URL`
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_SECURE`
+- `SMTP_USER`
+- `SMTP_PASS`
+- `SMTP_FROM`
 
 Supabase tips:
 
@@ -71,6 +77,20 @@ npm run db:seed
 ```
 
 Login page is available at `http://localhost:3000/login`.
+
+## Registration + Email Flows
+
+- Register at `http://localhost:3000/register`
+- Email verification endpoint: `http://localhost:3000/verify-email?token=...`
+- Forgot password page: `http://localhost:3000/forgot-password`
+- Reset password page: `http://localhost:3000/reset-password?token=...`
+
+Notes:
+
+- New users must verify email before signing in.
+- Password reset links expire in 30 minutes.
+- Verification links expire in 24 hours.
+- If SMTP is not configured, email links are logged in server console (development fallback).
 
 ## API Health Check
 

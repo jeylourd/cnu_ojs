@@ -20,7 +20,15 @@
 }
 
 body {
-  background: var(--background);
+  background-image: linear-gradient(rgba(69, 10, 10, 0.8), rgba(69, 10, 10, 0.8)), url('/CNU-FACADE-scaled.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+main[class*="bg-red-950"] {
+  background-color: rgba(69, 10, 10, 0.72) !important;
 }
