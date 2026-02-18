@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CNU OJS
 
-## Getting Started
+Open Journal System starter built with Next.js App Router, Prisma ORM, and Vercel Postgres.
 
-First, run the development server:
+## Stack
+
+- Next.js 16 (App Router)
+- React 19
+- Prisma ORM
+- Vercel Postgres
+
+## 1) Install dependencies
+
+```bash
+npm install
+```
+
+## 2) Configure environment variables
+
+Copy `.env.example` to `.env` and fill values from your Vercel project:
+
+```bash
+cp .env.example .env
+```
+
+Required keys:
+
+- `POSTGRES_PRISMA_URL`
+- `POSTGRES_URL_NON_POOLING`
+- `AUTH_SECRET`
+- `AUTH_URL`
+
+You may also keep the other `POSTGRES_*` values for tooling compatibility.
+
+## 3) Set up database schema
+
+```bash
+npm run db:generate
+npm run db:migrate -- --name init
+```
+
+If you prefer syncing without migrations during early prototyping:
+
+```bash
+npm run db:push
+```
+
+## 4) Run development server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 5) Seed initial admin account
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Set optional values in `.env`:
 
-## Learn More
+- `SEED_ADMIN_EMAIL`
+- `SEED_ADMIN_NAME`
+- `SEED_ADMIN_PASSWORD`
 
-To learn more about Next.js, take a look at the following resources:
+Then run:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run db:seed
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Login page is available at `http://localhost:3000/login`.
 
-## Deploy on Vercel
+## API Health Check
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `GET /api/health` runs a lightweight `SELECT 1` against your configured Postgres database.
+- Returns `200` when DB is connected and `503` when disconnected.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Prisma Commands
+
+- `npm run db:generate` — generate Prisma Client
+- `npm run db:migrate` — run local migration flow
+- `npm run db:push` — push schema directly
+- `npm run db:studio` — open Prisma Studio
+- `npm run db:seed` — seed initial admin account
+
+## Auth + Role Access
+
+- Credentials login via Auth.js at `/login`
+- Protected dashboard at `/dashboard`
+- Session-backed role display (`ADMIN`, `EDITOR`, `REVIEWER`, `AUTHOR`)
