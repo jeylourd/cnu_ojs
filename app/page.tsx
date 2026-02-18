@@ -15,7 +15,7 @@ export default function Home() {
   ];
 
   const setupChecklist = [
-    "Connect Vercel Postgres environment variables",
+    "Connect Supabase DATABASE_URL and DIRECT_URL",
     "Run Prisma generate and migrate",
     "Create initial admin/editor accounts",
     "Build role-based dashboard routes",
@@ -30,7 +30,7 @@ export default function Home() {
           </p>
           <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">Open Journal System starter app</h1>
           <p className="max-w-2xl text-base leading-7 text-zinc-600 dark:text-zinc-300">
-            Built with Next.js App Router, Prisma ORM, and Vercel Postgres for managing journals,
+            Built with Next.js App Router, Prisma ORM, and Supabase Postgres for managing journals,
             submissions, and peer review workflows.
           </p>
         </header>

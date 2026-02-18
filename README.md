@@ -1,13 +1,13 @@
 # CNU OJS
 
-Open Journal System starter built with Next.js App Router, Prisma ORM, and Vercel Postgres.
+Open Journal System starter built with Next.js App Router, Prisma ORM, and Supabase Postgres.
 
 ## Stack
 
 - Next.js 16 (App Router)
 - React 19
 - Prisma ORM
-- Vercel Postgres
+- Supabase Postgres
 
 ## 1) Install dependencies
 
@@ -17,7 +17,7 @@ npm install
 
 ## 2) Configure environment variables
 
-Copy `.env.example` to `.env` and fill values from your Vercel project:
+Copy `.env.example` to `.env` and fill values from your Supabase project:
 
 ```bash
 cp .env.example .env
@@ -25,12 +25,15 @@ cp .env.example .env
 
 Required keys:
 
-- `POSTGRES_PRISMA_URL`
-- `POSTGRES_URL_NON_POOLING`
+- `DATABASE_URL`
+- `DIRECT_URL`
 - `AUTH_SECRET`
 - `AUTH_URL`
 
-You may also keep the other `POSTGRES_*` values for tooling compatibility.
+Supabase tips:
+
+- Use pooled connection string (Transaction mode, port `6543`) for `DATABASE_URL`
+- Use direct connection string (Session mode, port `5432`) for `DIRECT_URL`
 
 ## 3) Set up database schema
 

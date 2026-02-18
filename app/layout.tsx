@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "CNU OJS",
-  description: "Open Journal System built with Next.js + Vercel Postgres",
+  description: "Open Journal System built with Next.js + Supabase Postgres",
 };
 
 export default function RootLayout({
