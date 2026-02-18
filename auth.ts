@@ -9,7 +9,7 @@ import { AppRole } from "@/lib/roles";
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: {
-    strategy: "database",
+    strategy: "jwt",
   },
   pages: {
     signIn: "/login",
@@ -62,10 +62,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       return true;
     },
-    session: async ({ session, user }) => {
+    jwt: async ({ token, user }) => {
+      if (user) {
+        token.id = user.id;
+        token.role = user.role as AppRole;
+      }
+
+      return token;
+    },
+    session: async ({ session, token }) => {
       if (session.user) {
-        session.user.id = user.id;
-        session.user.role = user.role as AppRole;
+        session.user.id = String(token.id ?? "");
+        session.user.role = (token.role as AppRole | undefined) ?? "AUTHOR";
       }
 
       return session;
