@@ -29,7 +29,7 @@ export default function Home() {
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-10">
         <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-yellow-500/50 bg-red-900 px-5 py-4">
           <div className="flex items-center gap-3">
-            <Image src="/cnu-logo.png" alt="Cebu Normal University logo" width={52} height={52} className="rounded-full border border-yellow-400/60" />
+            <Image src="/CNU-Logo.png" alt="Cebu Normal University logo" width={52} height={52} className="rounded-full border border-yellow-400/60" />
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-yellow-300">CNU OJS</p>
               <p className="text-sm text-yellow-100/80">Open Journal Systems Platform</p>

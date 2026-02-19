@@ -37,7 +37,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
         <div className="mx-auto w-full max-w-md rounded-2xl border border-yellow-500/50 bg-red-900 p-8 shadow-sm">
         <div className="mb-4 flex items-center gap-3">
-          <Image src="/cnu-logo.png" alt="Cebu Normal University logo" width={56} height={56} className="rounded-full border border-yellow-400/60" />
+          <Image src="/CNU-Logo.png" alt="Cebu Normal University logo" width={56} height={56} className="rounded-full border border-yellow-400/60" />
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-yellow-300">CNU OJS</p>
             <h1 className="text-2xl font-semibold text-yellow-50">Sign in</h1>
