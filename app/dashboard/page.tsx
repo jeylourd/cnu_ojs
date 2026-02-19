@@ -3,11 +3,13 @@ import Link from "next/link";
 import Image from "next/image";
 
 import { auth, signOut } from "@/auth";
+import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
+import { prisma } from "@/lib/prisma";
 import { AppRole } from "@/lib/roles";
 
 const roleModules: Record<AppRole, string[]> = {
-  ADMIN: ["Manage users and role assignments", "Configure journal settings", "Monitor platform activity"],
-  EDITOR: ["Assign reviewers", "Track review progress", "Issue editorial decisions"],
+  ADMIN: ["Manage users and role assignments", "Configure journal settings", "Monitor platform activity", "Manage journal announcements"],
+  EDITOR: ["Assign reviewers", "Track review progress", "Issue editorial decisions", "Publish journal announcements"],
   REVIEWER: ["View assigned manuscripts", "Submit recommendations", "Manage review deadlines"],
   AUTHOR: ["Create new submissions", "Track manuscript status", "Upload revisions"],
 };
@@ -21,10 +23,127 @@ export default async function DashboardPage() {
 
   const role = session.user.role;
   const modules = roleModules[role] ?? [];
+  const canManageAnnouncements = role === "ADMIN" || role === "EDITOR";
+  const isAdmin = role === "ADMIN";
+
+  const [recentAnnouncements, totalUsers, totalJournals, totalSubmissions, totalIssues, publishedIssues, recentUsers, recentSubmissions, recentReviews, recentDecisions, recentPublishedIssues] =
+    await Promise.all([
+      prisma.announcement.findMany({
+        where: canManageAnnouncements ? undefined : { publishedAt: { not: null } },
+        include: {
+          journal: { select: { name: true } },
+          createdBy: { select: { name: true, email: true } },
+        },
+        orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+        take: 5,
+      }),
+      isAdmin ? prisma.user.count() : Promise.resolve(0),
+      isAdmin ? prisma.journal.count() : Promise.resolve(0),
+      isAdmin ? prisma.submission.count() : Promise.resolve(0),
+      isAdmin ? prisma.issue.count() : Promise.resolve(0),
+      isAdmin ? prisma.issue.count({ where: { publishedAt: { not: null } } }) : Promise.resolve(0),
+      isAdmin
+        ? prisma.user.findMany({
+            select: { id: true, name: true, email: true, createdAt: true },
+            orderBy: { createdAt: "desc" },
+            take: 5,
+          })
+        : Promise.resolve([]),
+      isAdmin
+        ? prisma.submission.findMany({
+            select: {
+              id: true,
+              title: true,
+              createdAt: true,
+              author: { select: { name: true, email: true } },
+            },
+            orderBy: { createdAt: "desc" },
+            take: 5,
+          })
+        : Promise.resolve([]),
+      isAdmin
+        ? prisma.review.findMany({
+            where: { submittedAt: { not: null } },
+            select: {
+              id: true,
+              submittedAt: true,
+              reviewer: { select: { name: true, email: true } },
+              submission: { select: { title: true } },
+            },
+            orderBy: { submittedAt: "desc" },
+            take: 5,
+          })
+        : Promise.resolve([]),
+      isAdmin
+        ? prisma.editorialDecision.findMany({
+            select: {
+              id: true,
+              status: true,
+              decidedAt: true,
+              decidedBy: { select: { name: true, email: true } },
+              submission: { select: { title: true } },
+            },
+            orderBy: { decidedAt: "desc" },
+            take: 5,
+          })
+        : Promise.resolve([]),
+      isAdmin
+        ? prisma.issue.findMany({
+            where: { publishedAt: { not: null } },
+            select: {
+              id: true,
+              volume: true,
+              issueNumber: true,
+              year: true,
+              publishedAt: true,
+              journal: { select: { name: true } },
+            },
+            orderBy: { publishedAt: "desc" },
+            take: 5,
+          })
+        : Promise.resolve([]),
+    ]);
+
+  const activityFeed = isAdmin
+    ? [
+        ...recentUsers.map((item) => ({
+          id: `user-${item.id}`,
+          label: "New user registered",
+          actor: item.name || item.email,
+          when: item.createdAt,
+        })),
+        ...recentSubmissions.map((item) => ({
+          id: `submission-${item.id}`,
+          label: `Submission created: ${item.title}`,
+          actor: item.author.name || item.author.email,
+          when: item.createdAt,
+        })),
+        ...recentReviews.map((item) => ({
+          id: `review-${item.id}`,
+          label: `Review submitted for: ${item.submission.title}`,
+          actor: item.reviewer.name || item.reviewer.email,
+          when: item.submittedAt ?? new Date(0),
+        })),
+        ...recentDecisions.map((item) => ({
+          id: `decision-${item.id}`,
+          label: `${item.status} recorded for: ${item.submission.title}`,
+          actor: item.decidedBy.name || item.decidedBy.email,
+          when: item.decidedAt,
+        })),
+        ...recentPublishedIssues.map((item) => ({
+          id: `issue-${item.id}`,
+          label: `Issue published: ${item.journal.name} Vol ${item.volume} No ${item.issueNumber} (${item.year})`,
+          actor: "System",
+          when: item.publishedAt ?? new Date(0),
+        })),
+      ]
+        .sort((left, right) => right.when.getTime() - left.when.getTime())
+        .slice(0, 8)
+    : [];
 
   return (
-    <main className="min-h-screen bg-red-950 px-6 py-10 text-yellow-100">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
+    <main className="min-h-screen bg-red-950 px-6 py-10 text-yellow-100 lg:px-8">
+      <div className="flex w-full flex-col gap-8">
         <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-yellow-500/50 bg-red-900 p-6 shadow-sm">
           <div className="flex items-start gap-3">
             <Image src="/cnu-logo.png" alt="Cebu Normal University logo" width={56} height={56} className="rounded-full border border-yellow-400/60" />
@@ -52,100 +171,90 @@ export default async function DashboardPage() {
           </form>
         </header>
 
-        <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-yellow-50">Your module access</h2>
-          <ul className="mt-4 space-y-3 text-sm leading-6 text-yellow-100/90">
-            {modules.map((item) => (
-              <li key={item} className="flex items-start gap-3">
-                <span className="mt-2 h-1.5 w-1.5 rounded-full bg-yellow-300" aria-hidden="true" />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
+        <section className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
+          <DashboardSidebar role={session.user.role} />
 
-          <div className="mt-6">
-            <Link
-              href="/dashboard/submissions"
-              className="inline-flex rounded-lg border border-yellow-400/70 px-4 py-2 text-sm font-medium text-yellow-100 transition hover:bg-red-800"
-            >
-              Open submission management
-            </Link>
+          <div className="space-y-6">
+            <article className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-yellow-50">Dashboard overview</h2>
+              <p className="mt-2 text-sm text-yellow-100/85">Your active modules: {modules.join(" · ")}</p>
+            </article>
+
+            {isAdmin ? (
+              <article className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="text-lg font-semibold text-yellow-50">Platform activity monitor</h2>
+                  <Link
+                    href="/dashboard/activity"
+                    className="rounded-lg border border-yellow-400/70 px-3 py-1.5 text-xs font-medium text-yellow-100 transition hover:bg-red-800"
+                  >
+                    Open full monitor
+                  </Link>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                  <div className="rounded-lg border border-yellow-500/30 bg-red-800/55 p-3">
+                    <p className="text-xs uppercase tracking-[0.12em] text-yellow-300">Users</p>
+                    <p className="mt-1 text-xl font-semibold text-yellow-50">{totalUsers}</p>
+                  </div>
+                  <div className="rounded-lg border border-yellow-500/30 bg-red-800/55 p-3">
+                    <p className="text-xs uppercase tracking-[0.12em] text-yellow-300">Journals</p>
+                    <p className="mt-1 text-xl font-semibold text-yellow-50">{totalJournals}</p>
+                  </div>
+                  <div className="rounded-lg border border-yellow-500/30 bg-red-800/55 p-3">
+                    <p className="text-xs uppercase tracking-[0.12em] text-yellow-300">Submissions</p>
+                    <p className="mt-1 text-xl font-semibold text-yellow-50">{totalSubmissions}</p>
+                  </div>
+                  <div className="rounded-lg border border-yellow-500/30 bg-red-800/55 p-3">
+                    <p className="text-xs uppercase tracking-[0.12em] text-yellow-300">Issues</p>
+                    <p className="mt-1 text-xl font-semibold text-yellow-50">{totalIssues}</p>
+                  </div>
+                  <div className="rounded-lg border border-yellow-500/30 bg-red-800/55 p-3">
+                    <p className="text-xs uppercase tracking-[0.12em] text-yellow-300">Published</p>
+                    <p className="mt-1 text-xl font-semibold text-yellow-50">{publishedIssues}</p>
+                  </div>
+                </div>
+
+                <ul className="mt-4 space-y-2">
+                  {activityFeed.map((item) => (
+                    <li key={item.id} className="rounded-lg border border-yellow-500/25 bg-red-800/50 px-3 py-2">
+                      <p className="text-sm font-medium text-yellow-50">{item.label}</p>
+                      <p className="mt-0.5 text-xs text-yellow-200/80">
+                        {item.actor} · {item.when.toLocaleString()}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            ) : null}
+
+            <article className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-yellow-50">Journal announcements</h2>
+                <Link
+                  href="/dashboard/announcements"
+                  className="rounded-lg border border-yellow-400/70 px-3 py-1.5 text-xs font-medium text-yellow-100 transition hover:bg-red-800"
+                >
+                  Open announcements
+                </Link>
+              </div>
+
+              {recentAnnouncements.length === 0 ? (
+                <p className="mt-4 text-sm text-yellow-100/85">No announcements available yet.</p>
+              ) : (
+                <ul className="mt-4 space-y-2">
+                  {recentAnnouncements.map((announcement) => (
+                    <li key={announcement.id} className="rounded-lg border border-yellow-500/25 bg-red-800/50 px-3 py-2">
+                      <p className="text-sm font-medium text-yellow-50">{announcement.title}</p>
+                      <p className="mt-0.5 text-xs text-yellow-200/80">
+                        {announcement.journal.name} · {announcement.createdBy.name || announcement.createdBy.email}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </article>
           </div>
-
-          <div className="mt-3">
-            <Link
-              href="/dashboard/reviews"
-              className="inline-flex rounded-lg border border-yellow-400/70 px-4 py-2 text-sm font-medium text-yellow-100 transition hover:bg-red-800"
-            >
-              Open peer review module
-            </Link>
-          </div>
-
-          {role === "ADMIN" || role === "EDITOR" ? (
-            <div className="mt-3">
-              <Link
-                href="/dashboard/decisions"
-                className="inline-flex rounded-lg border border-yellow-400/70 px-4 py-2 text-sm font-medium text-yellow-100 transition hover:bg-red-800"
-              >
-                Open editorial decisions
-              </Link>
-            </div>
-          ) : null}
-
-          {role === "ADMIN" || role === "EDITOR" ? (
-            <div className="mt-3">
-              <Link
-                href="/dashboard/publications"
-                className="inline-flex rounded-lg border border-yellow-400/70 px-4 py-2 text-sm font-medium text-yellow-100 transition hover:bg-red-800"
-              >
-                Open issue publication module
-              </Link>
-            </div>
-          ) : null}
-
-          {role === "ADMIN" ? (
-            <div className="mt-3">
-              <Link
-                href="/dashboard/users"
-                className="inline-flex rounded-lg border border-yellow-400/70 px-4 py-2 text-sm font-medium text-yellow-100 transition hover:bg-red-800"
-              >
-                Open user and role management
-              </Link>
-            </div>
-          ) : null}
-
-          {role === "ADMIN" ? (
-            <div className="mt-3">
-              <Link
-                href="/dashboard/journal-settings"
-                className="inline-flex rounded-lg border border-yellow-400/70 px-4 py-2 text-sm font-medium text-yellow-100 transition hover:bg-red-800"
-              >
-                Open journal settings
-              </Link>
-            </div>
-          ) : null}
-
-          {role === "ADMIN" ? (
-            <div className="mt-3">
-              <Link
-                href="/dashboard/activity"
-                className="inline-flex rounded-lg border border-yellow-400/70 px-4 py-2 text-sm font-medium text-yellow-100 transition hover:bg-red-800"
-              >
-                Open platform activity monitor
-              </Link>
-            </div>
-          ) : null}
-
-          {role === "ADMIN" ? (
-            <div className="mt-3">
-              <Link
-                href="/dashboard/journals"
-                className="inline-flex rounded-lg bg-yellow-400 px-4 py-2 text-sm font-semibold text-red-950 transition hover:bg-yellow-300"
-              >
-                Open journal management
-              </Link>
-            </div>
-          ) : null}
         </section>
       </div>
     </main>

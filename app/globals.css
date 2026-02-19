@@ -32,3 +32,16 @@ body {
 main[class*="bg-red-950"] {
   background-color: rgba(69, 10, 10, 0.72) !important;
 }
+
+main :is(header, section, article, div)[class~="bg-red-900"],
+main :is(header, section, article, div)[class~="bg-red-900/70"] {
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.08));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+main [class~="border-yellow-500/50"],
+main [class~="border-yellow-500/40"],
+main [class~="border-yellow-500/30"],
+main [class~="border-yellow-500/25"] {
+  border-color: rgba(255, 255, 255, 0.42) !important;
+}

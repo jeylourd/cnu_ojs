@@ -27,9 +27,6 @@ export default async function IssueDetailPage({ params }: IssueDetailPageProps) 
         },
       },
       submissions: {
-        where: {
-          status: "PUBLISHED",
-        },
         include: {
           author: {
             select: {
@@ -75,6 +72,12 @@ export default async function IssueDetailPage({ params }: IssueDetailPageProps) 
                 Home
               </Link>
               <Link
+                href="/journals"
+                className="inline-flex rounded-full border border-yellow-400/50 px-3 py-1.5 text-sm font-medium text-yellow-200 transition hover:bg-red-800"
+              >
+                Journals
+              </Link>
+              <Link
                 href="/issues"
                 className="inline-flex rounded-full border border-yellow-400/50 px-3 py-1.5 text-sm font-medium text-yellow-200 transition hover:bg-red-800"
               >
@@ -113,6 +116,27 @@ export default async function IssueDetailPage({ params }: IssueDetailPageProps) 
                     {submission.author.name || submission.author.email}
                   </p>
                   <p className="mt-3 text-sm leading-6 text-yellow-100/85">{submission.abstract}</p>
+                  {submission.manuscriptUrl ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {(submission.manuscriptUrl.split("?")[0] ?? "").toLowerCase().endsWith(".pdf") ? (
+                        <Link
+                          href={`/issues/${issue.id}/articles/${submission.id}`}
+                          className="inline-flex rounded-lg border border-yellow-400/50 px-3 py-1.5 text-xs font-medium text-yellow-100 transition hover:bg-red-800"
+                        >
+                          View PDF
+                        </Link>
+                      ) : (
+                        <a
+                          href={submission.manuscriptUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex rounded-lg border border-yellow-400/50 px-3 py-1.5 text-xs font-medium text-yellow-100 transition hover:bg-red-800"
+                        >
+                          Open file
+                        </a>
+                      )}
+                    </div>
+                  ) : null}
                   {submission.keywords.length > 0 ? (
                     <p className="mt-3 text-xs text-yellow-100/70">Keywords: {submission.keywords.join(", ")}</p>
                   ) : null}

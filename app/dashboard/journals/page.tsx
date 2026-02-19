@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
+import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { prisma } from "@/lib/prisma";
 
 function toSlug(value: string) {
@@ -90,8 +91,8 @@ export default async function JournalManagementPage() {
   }
 
   return (
-    <main className="min-h-screen bg-red-950 px-6 py-10 text-yellow-100">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
+    <main className="min-h-screen bg-red-950 px-6 py-10 text-yellow-100 lg:px-8">
+      <div className="flex w-full flex-col gap-8">
         <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-yellow-500/50 bg-red-900 p-6 shadow-sm">
           <div className="flex items-start gap-3">
             <Image src="/cnu-logo.png" alt="Cebu Normal University logo" width={56} height={56} className="rounded-full border border-yellow-400/60" />
@@ -112,8 +113,12 @@ export default async function JournalManagementPage() {
           </Link>
         </header>
 
-        <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-yellow-50">Create new journal</h2>
+        <section className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
+          <DashboardSidebar role={session.user.role} />
+
+          <div className="space-y-8">
+            <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-yellow-50">Create new journal</h2>
 
           <form action={createJournal} className="mt-4 grid gap-4 sm:grid-cols-2">
             <label className="block text-sm font-medium text-yellow-100 sm:col-span-2">
@@ -156,10 +161,10 @@ export default async function JournalManagementPage() {
               </button>
             </div>
           </form>
-        </section>
+            </section>
 
-        <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-yellow-50">Existing journals ({journals.length})</h2>
+            <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-yellow-50">Existing journals ({journals.length})</h2>
 
           {journals.length === 0 ? (
             <p className="mt-4 text-sm text-yellow-100/85">No journals yet. Create the first one above.</p>
@@ -187,6 +192,8 @@ export default async function JournalManagementPage() {
               </table>
             </div>
           )}
+            </section>
+          </div>
         </section>
       </div>
     </main>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
+import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { prisma } from "@/lib/prisma";
 
 const publicationRoles = new Set(["ADMIN", "EDITOR"]);
@@ -62,9 +63,11 @@ export default async function PublicationManagementPage() {
     orderBy: [{ year: "desc" }, { volume: "desc" }, { issueNumber: "desc" }],
   });
 
-  const acceptedSubmissions = await prisma.submission.findMany({
+  const assignableSubmissions = await prisma.submission.findMany({
     where: {
-      status: "ACCEPTED",
+      status: {
+        in: ["ACCEPTED", "PUBLISHED"],
+      },
       issueId: null,
       journalId: {
         in: manageableJournalIds,
@@ -89,6 +92,15 @@ export default async function PublicationManagementPage() {
       updatedAt: "desc",
     },
   });
+
+  const revalidatePublicPublicationPaths = (journalSlug: string, issueId: string) => {
+    revalidatePath("/issues");
+    revalidatePath(`/issues/${issueId}`);
+    revalidatePath("/journals");
+    revalidatePath(`/journals/${journalSlug}`);
+    revalidatePath(`/journals/${journalSlug}/current`);
+    revalidatePath(`/journals/${journalSlug}/archives`);
+  };
 
   async function createIssue(formData: FormData) {
     "use server";
@@ -170,6 +182,7 @@ export default async function PublicationManagementPage() {
           select: {
             id: true,
             editorId: true,
+            slug: true,
           },
         },
       },
@@ -192,7 +205,7 @@ export default async function PublicationManagementPage() {
       },
     });
 
-    if (!submission || submission.status !== "ACCEPTED") {
+    if (!submission || (submission.status !== "ACCEPTED" && submission.status !== "PUBLISHED")) {
       return;
     }
 
@@ -204,10 +217,15 @@ export default async function PublicationManagementPage() {
       where: { id: submission.id },
       data: {
         issueId: issue.id,
+        status: issue.publishedAt ? "PUBLISHED" : "ACCEPTED",
       },
     });
 
     revalidatePath("/dashboard/publications");
+    revalidatePath("/dashboard/submissions");
+    if (issue.publishedAt) {
+      revalidatePublicPublicationPaths(issue.journal.slug, issue.id);
+    }
   }
 
   async function publishIssue(formData: FormData) {
@@ -235,6 +253,7 @@ export default async function PublicationManagementPage() {
         journal: {
           select: {
             editorId: true,
+            slug: true,
           },
         },
       },
@@ -270,11 +289,12 @@ export default async function PublicationManagementPage() {
 
     revalidatePath("/dashboard/publications");
     revalidatePath("/dashboard/submissions");
+    revalidatePublicPublicationPaths(issue.journal.slug, issue.id);
   }
 
   return (
-    <main className="min-h-screen bg-red-950 px-6 py-10 text-yellow-100">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+    <main className="min-h-screen bg-red-950 px-6 py-10 text-yellow-100 lg:px-8">
+      <div className="flex w-full flex-col gap-8">
         <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-yellow-500/50 bg-red-900 p-6 shadow-sm">
           <div className="flex items-start gap-3">
             <Image src="/cnu-logo.png" alt="Cebu Normal University logo" width={56} height={56} className="rounded-full border border-yellow-400/60" />
@@ -295,8 +315,12 @@ export default async function PublicationManagementPage() {
           </Link>
         </header>
 
-        <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-yellow-50">Create volume / issue</h2>
+        <section className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
+          <DashboardSidebar role={session.user.role} />
+
+          <div className="space-y-8">
+            <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-yellow-50">Create volume / issue</h2>
 
           {manageableJournals.length === 0 ? (
             <p className="mt-4 text-sm text-yellow-100/85">No manageable journals found for this account.</p>
@@ -371,27 +395,27 @@ export default async function PublicationManagementPage() {
               </div>
             </form>
           )}
-        </section>
+            </section>
 
-        <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-yellow-50">Assign accepted submissions</h2>
+            <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-yellow-50">Assign accepted submissions</h2>
 
-          {acceptedSubmissions.length === 0 || issues.length === 0 ? (
+          {assignableSubmissions.length === 0 || issues.length === 0 ? (
             <p className="mt-4 text-sm text-yellow-100/85">
-              Need at least one accepted submission and one issue to assign publication.
+              Need at least one assignable submission and one issue to assign publication.
             </p>
           ) : (
             <form action={assignSubmissionToIssue} className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className="block text-sm font-medium text-yellow-100">
-                Accepted submission
+                Assignable submission
                 <select
                   name="submissionId"
                   required
                   className="mt-1 w-full rounded-lg border border-yellow-500/40 bg-red-950 px-3 py-2 text-sm text-yellow-100 outline-none ring-yellow-400 focus:ring-2"
                 >
-                  {acceptedSubmissions.map((submission) => (
+                  {assignableSubmissions.map((submission) => (
                     <option key={submission.id} value={submission.id}>
-                      {submission.title} ({submission.journal.name})
+                      [{submission.status}] {submission.title} ({submission.journal.name})
                     </option>
                   ))}
                 </select>
@@ -406,7 +430,7 @@ export default async function PublicationManagementPage() {
                 >
                   {issues.map((issue) => (
                     <option key={issue.id} value={issue.id}>
-                      {issue.journal.name} · Vol {issue.volume} No {issue.issueNumber} ({issue.year})
+                      [{issue.publishedAt ? "Published" : "Draft"}] {issue.journal.name} · Vol {issue.volume} No {issue.issueNumber} ({issue.year})
                     </option>
                   ))}
                 </select>
@@ -422,10 +446,10 @@ export default async function PublicationManagementPage() {
               </div>
             </form>
           )}
-        </section>
+            </section>
 
-        <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-yellow-50">Issue publication list ({issues.length})</h2>
+            <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-yellow-50">Issue publication list ({issues.length})</h2>
 
           {issues.length === 0 ? (
             <p className="mt-4 text-sm text-yellow-100/85">No issues created yet.</p>
@@ -479,6 +503,8 @@ export default async function PublicationManagementPage() {
               ))}
             </div>
           )}
+            </section>
+          </div>
         </section>
       </div>
     </main>

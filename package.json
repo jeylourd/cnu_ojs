@@ -36,9 +36,6 @@
     "tsx": "^4.20.3",
     "typescript": "^5"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
   "overrides": {
     "@auth/core": "0.41.1"
   }

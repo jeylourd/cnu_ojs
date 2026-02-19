@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 
 import { auth } from "@/auth";
+import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
+import { PaginationNav } from "@/components/ui/PaginationNav";
 import { APP_ROLES, AppRole } from "@/lib/roles";
 import { prisma } from "@/lib/prisma";
 
@@ -134,8 +136,8 @@ export default async function UserRoleManagementPage({ searchParams }: UserRoleM
   }
 
   return (
-    <main className="min-h-screen bg-red-950 px-6 py-10 text-yellow-100">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+    <main className="min-h-screen bg-red-950 px-6 py-10 text-yellow-100 lg:px-8">
+      <div className="flex w-full flex-col gap-8">
         <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-yellow-500/50 bg-red-900 p-6 shadow-sm">
           <div className="flex items-start gap-3">
             <Image src="/cnu-logo.png" alt="Cebu Normal University logo" width={56} height={56} className="rounded-full border border-yellow-400/60" />
@@ -154,8 +156,12 @@ export default async function UserRoleManagementPage({ searchParams }: UserRoleM
           </Link>
         </header>
 
-        <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-yellow-50">Users ({totalUsers})</h2>
+        <section className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
+          <DashboardSidebar role={session.user.role} />
+
+          <div>
+            <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-yellow-50">Users ({totalUsers})</h2>
 
           <form className="mt-4 grid gap-3 rounded-xl border border-yellow-500/25 bg-red-800/60 p-4 sm:grid-cols-4" method="get">
             <input type="hidden" name="page" value="1" />
@@ -282,27 +288,12 @@ export default async function UserRoleManagementPage({ searchParams }: UserRoleM
                 <p>
                   Page {safePage} of {totalPages}
                 </p>
-                <div className="flex items-center gap-2">
-                  {safePage > 1 ? (
-                    <Link
-                      href={buildUsersLink(safePage - 1)}
-                      className="rounded-lg border border-yellow-400/70 px-3 py-1.5 font-medium text-yellow-100 transition hover:bg-red-800"
-                    >
-                      Previous
-                    </Link>
-                  ) : null}
-                  {safePage < totalPages ? (
-                    <Link
-                      href={buildUsersLink(safePage + 1)}
-                      className="rounded-lg border border-yellow-400/70 px-3 py-1.5 font-medium text-yellow-100 transition hover:bg-red-800"
-                    >
-                      Next
-                    </Link>
-                  ) : null}
-                </div>
+                <PaginationNav currentPage={safePage} totalPages={totalPages} buildHref={buildUsersLink} />
               </div>
             </div>
           )}
+            </section>
+          </div>
         </section>
       </div>
     </main>

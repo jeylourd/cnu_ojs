@@ -1,9 +1,13 @@
 import { revalidatePath } from "next/cache";
+import { mkdir, stat, writeFile } from "node:fs/promises";
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
 
 import { auth } from "@/auth";
+import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { prisma } from "@/lib/prisma";
 
 type SubmissionStatusValue =
@@ -24,8 +28,49 @@ const editableStatuses: SubmissionStatusValue[] = [
   "PUBLISHED",
 ];
 
-const createAllowedRoles = new Set(["ADMIN", "EDITOR", "AUTHOR"]);
+const createAllowedRoles = new Set(["AUTHOR"]);
 const statusManageRoles = new Set(["ADMIN", "EDITOR"]);
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getFileTypeLabel(filePath: string) {
+  const extension = path.extname(filePath).toLowerCase();
+
+  if (extension === ".pdf") {
+    return "PDF";
+  }
+
+  if (extension === ".doc") {
+    return "DOC";
+  }
+
+  if (extension === ".docx") {
+    return "DOCX";
+  }
+
+  return extension.replace(".", "").toUpperCase() || "FILE";
+}
+
+function getOriginalFilenameFromUrl(manuscriptUrl: string) {
+  try {
+    const parsedUrl = new URL(manuscriptUrl, "http://localhost");
+    const filename = parsedUrl.searchParams.get("name")?.trim();
+
+    return filename || "manuscript";
+  } catch {
+    return "manuscript";
+  }
+}
 
 export default async function SubmissionManagementPage() {
   const session = await auth();
@@ -89,6 +134,30 @@ export default async function SubmissionManagementPage() {
     },
   });
 
+  const manuscriptMetaBySubmissionId = new Map<string, { type: string; size: string }>();
+
+  await Promise.all(
+    submissions.map(async (submission) => {
+      if (!submission.manuscriptUrl || !submission.manuscriptUrl.startsWith("/uploads/manuscripts/")) {
+        return;
+      }
+
+      try {
+        const fileOnlyUrl = submission.manuscriptUrl.split("?")[0] ?? submission.manuscriptUrl;
+        const relativeFilePath = fileOnlyUrl.replace(/^\//, "");
+        const absoluteFilePath = path.join(process.cwd(), "public", relativeFilePath);
+        const fileStats = await stat(absoluteFilePath);
+
+        manuscriptMetaBySubmissionId.set(submission.id, {
+          type: getFileTypeLabel(absoluteFilePath),
+          size: formatFileSize(fileStats.size),
+        });
+      } catch {
+        return;
+      }
+    }),
+  );
+
   async function createSubmission(formData: FormData) {
     "use server";
 
@@ -106,7 +175,7 @@ export default async function SubmissionManagementPage() {
     const title = String(formData.get("title") ?? "").trim();
     const abstract = String(formData.get("abstract") ?? "").trim();
     const keywordInput = String(formData.get("keywords") ?? "").trim();
-    const manuscriptUrl = String(formData.get("manuscriptUrl") ?? "").trim();
+    const manuscriptFile = formData.get("manuscriptFile");
 
     if (!journalId || !title || !abstract) {
       return;
@@ -117,6 +186,36 @@ export default async function SubmissionManagementPage() {
       .map((keyword) => keyword.trim())
       .filter(Boolean);
 
+    let manuscriptUrl: string | null = null;
+
+    if (manuscriptFile instanceof File && manuscriptFile.size > 0) {
+      const maxBytes = 10 * 1024 * 1024;
+
+      if (manuscriptFile.size > maxBytes) {
+        return;
+      }
+
+      const originalName = manuscriptFile.name || "manuscript";
+      const safeOriginalName = path.basename(originalName).trim();
+      const extension = path.extname(originalName).toLowerCase();
+      const allowedExtensions = new Set([".pdf", ".doc", ".docx"]);
+
+      if (!allowedExtensions.has(extension)) {
+        return;
+      }
+
+      const uploadsDir = path.join(process.cwd(), "public", "uploads", "manuscripts");
+      await mkdir(uploadsDir, { recursive: true });
+
+      const fileName = `${Date.now()}-${randomUUID()}${extension}`;
+      const filePath = path.join(uploadsDir, fileName);
+      const fileBuffer = Buffer.from(await manuscriptFile.arrayBuffer());
+
+      await writeFile(filePath, fileBuffer);
+      const filenameQuery = safeOriginalName ? `?name=${encodeURIComponent(safeOriginalName)}` : "";
+      manuscriptUrl = `/uploads/manuscripts/${fileName}${filenameQuery}`;
+    }
+
     await prisma.submission.create({
       data: {
         journalId,
@@ -124,7 +223,7 @@ export default async function SubmissionManagementPage() {
         title,
         abstract,
         keywords,
-        manuscriptUrl: manuscriptUrl || null,
+        manuscriptUrl,
         status: "SUBMITTED",
         submittedAt: new Date(),
       },
@@ -164,8 +263,8 @@ export default async function SubmissionManagementPage() {
   }
 
   return (
-    <main className="min-h-screen bg-red-950 px-6 py-10 text-yellow-100">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+    <main className="min-h-screen bg-red-950 px-6 py-10 text-yellow-100 lg:px-8">
+      <div className="flex w-full flex-col gap-8">
         <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-yellow-500/50 bg-red-900 p-6 shadow-sm">
           <div className="flex items-start gap-3">
             <Image src="/cnu-logo.png" alt="Cebu Normal University logo" width={56} height={56} className="rounded-full border border-yellow-400/60" />
@@ -186,8 +285,12 @@ export default async function SubmissionManagementPage() {
           </Link>
         </header>
 
-        {canCreateSubmission ? (
-          <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
+        <section className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
+          <DashboardSidebar role={session.user.role} />
+
+          <div className="space-y-8">
+            {canCreateSubmission ? (
+              <section id="new-submission" className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-yellow-50">Create submission</h2>
 
             {journals.length === 0 ? (
@@ -242,13 +345,14 @@ export default async function SubmissionManagementPage() {
                 </label>
 
                 <label className="block text-sm font-medium text-yellow-100">
-                  Manuscript URL (optional)
+                  Upload manuscript (PDF/DOC/DOCX)
                   <input
-                    type="url"
-                    name="manuscriptUrl"
-                    className="mt-1 w-full rounded-lg border border-yellow-500/40 bg-red-950 px-3 py-2 text-sm text-yellow-100 outline-none ring-yellow-400 focus:ring-2"
-                    placeholder="https://..."
+                    type="file"
+                    name="manuscriptFile"
+                    accept=".pdf,.doc,.docx"
+                    className="mt-1 w-full rounded-lg border border-yellow-500/40 bg-red-950 px-3 py-2 text-sm text-yellow-100 file:mr-3 file:rounded-md file:border-0 file:bg-yellow-400 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-red-950 outline-none ring-yellow-400 focus:ring-2"
                   />
+                  <span className="mt-1 block text-xs text-yellow-200/80">Max file size: 10MB</span>
                 </label>
 
                 <div className="sm:col-span-2">
@@ -261,11 +365,16 @@ export default async function SubmissionManagementPage() {
                 </div>
               </form>
             )}
-          </section>
-        ) : null}
+              </section>
+            ) : (
+              <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
+                <h2 className="text-lg font-semibold text-yellow-50">Create submission</h2>
+                <p className="mt-3 text-sm text-yellow-100/85">Only author accounts can create a new submission. You can still view and manage submission records based on your role permissions.</p>
+              </section>
+            )}
 
-        <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-yellow-50">Submissions ({submissions.length})</h2>
+            <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-yellow-50">Submissions ({submissions.length})</h2>
 
           {submissions.length === 0 ? (
             <p className="mt-4 text-sm text-yellow-100/85">No submissions found for your role.</p>
@@ -340,30 +449,51 @@ export default async function SubmissionManagementPage() {
                           {submission.submittedAt ? new Date(submission.submittedAt).toLocaleDateString() : "-"}
                         </td>
                         <td className="py-2 pr-4">
-                          {canManageStatus ? (
-                            <form action={updateSubmissionStatus} className="flex items-center gap-2">
-                              <input type="hidden" name="submissionId" value={submission.id} />
-                              <select
-                                name="status"
-                                defaultValue={submission.status}
-                                className="rounded-lg border border-yellow-500/40 bg-red-950 px-2 py-1.5 text-xs text-yellow-100 outline-none ring-yellow-400 focus:ring-2"
-                              >
-                                {editableStatuses.map((status) => (
-                                  <option key={status} value={status}>
-                                    {status}
-                                  </option>
-                                ))}
-                              </select>
-                              <button
-                                type="submit"
-                                className="rounded-lg border border-yellow-400/70 px-2.5 py-1.5 text-xs font-medium text-yellow-100 transition hover:bg-red-800"
-                              >
-                                Update
-                              </button>
-                            </form>
-                          ) : (
-                            <span className="text-xs text-yellow-200/70">No edit access</span>
-                          )}
+                          <div className="flex flex-col gap-2">
+                            {submission.manuscriptUrl ? (
+                              <div>
+                                <a
+                                  href={submission.manuscriptUrl}
+                                  download
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex w-fit rounded-lg border border-yellow-400/70 px-2.5 py-1.5 text-xs font-medium text-yellow-100 transition hover:bg-red-800"
+                                >
+                                  Download {getOriginalFilenameFromUrl(submission.manuscriptUrl)}
+                                </a>
+                                {manuscriptMetaBySubmissionId.get(submission.id) ? (
+                                  <p className="mt-1 text-xs text-yellow-200/80">
+                                    {manuscriptMetaBySubmissionId.get(submission.id)?.type} · {manuscriptMetaBySubmissionId.get(submission.id)?.size}
+                                  </p>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-yellow-200/70">No manuscript file</span>
+                            )}
+
+                            {canManageStatus ? (
+                              <form action={updateSubmissionStatus} className="flex items-center gap-2">
+                                <input type="hidden" name="submissionId" value={submission.id} />
+                                <select
+                                  name="status"
+                                  defaultValue={submission.status}
+                                  className="rounded-lg border border-yellow-500/40 bg-red-950 px-2 py-1.5 text-xs text-yellow-100 outline-none ring-yellow-400 focus:ring-2"
+                                >
+                                  {editableStatuses.map((status) => (
+                                    <option key={status} value={status}>
+                                      {status}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="submit"
+                                  className="rounded-lg border border-yellow-400/70 px-2.5 py-1.5 text-xs font-medium text-yellow-100 transition hover:bg-red-800"
+                                >
+                                  Update
+                                </button>
+                              </form>
+                            ) : null}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -372,6 +502,8 @@ export default async function SubmissionManagementPage() {
               </table>
             </div>
           )}
+            </section>
+          </div>
         </section>
       </div>
     </main>

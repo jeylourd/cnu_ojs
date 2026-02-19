@@ -1,0 +1,153 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Prisma Generate",
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"run",
+				"db:generate"
+			]
+		},
+		{
+			"label": "Prisma Generate",
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"run",
+				"db:generate"
+			]
+		},
+		{
+			"label": "Prisma Generate No Engine",
+			"type": "shell",
+			"command": "npx",
+			"args": [
+				"prisma",
+				"generate",
+				"--no-engine"
+			]
+		},
+		{
+			"label": "Prisma Generate Types Only",
+			"type": "shell",
+			"command": "node_modules\\.bin\\prisma.cmd",
+			"args": [
+				"generate",
+				"--no-engine"
+			]
+		},
+		{
+			"label": "Prisma DB Push",
+			"type": "shell",
+			"command": "node_modules\\.bin\\prisma.cmd",
+			"args": [
+				"db",
+				"push",
+				"--skip-generate"
+			]
+		},
+		{
+			"label": "Build App",
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"run",
+				"build"
+			]
+		},
+		{
+			"label": "Prisma DB Push Confirm",
+			"type": "shell",
+			"command": "node_modules\\.bin\\prisma.cmd",
+			"args": [
+				"db",
+				"push",
+				"--skip-generate"
+			]
+		},
+		{
+			"label": "Lint Check",
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"run",
+				"lint"
+			]
+		},
+		{
+			"label": "Check Publication Data",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				".tmp-check-publication.js"
+			]
+		},
+		{
+			"label": "Check Publication Data",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"tmp-check-publication.js"
+			]
+		},
+		{
+			"label": "Check Publication Data 2",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"tmp-check-publication.js"
+			]
+		},
+		{
+			"label": "DB Link Check",
+			"type": "shell",
+			"command": "node_modules\\.bin\\prisma.cmd",
+			"args": [
+				"db",
+				"execute",
+				"--file",
+				"prisma/link-check.sql",
+				"--schema",
+				"prisma/schema.prisma"
+			]
+		},
+		{
+			"label": "Reset Prisma Client Engine",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force; if (Test-Path node_modules/.prisma/client/query_engine-windows.dll.node) { Remove-Item node_modules/.prisma/client/query_engine-windows.dll.node -Force }; node_modules/.bin/prisma.cmd generate"
+			]
+		},
+		{
+			"label": "Check Publication Data Final",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"tmp-check-publication.js"
+			]
+		},
+		{
+			"label": "Check Orphan Submissions",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"tmp-check-orphans.js"
+			]
+		},
+		{
+			"label": "Repair Orphan Published Submissions",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"tmp-repair-orphan-published-submissions.js"
+			]
+		}
+	]
+}

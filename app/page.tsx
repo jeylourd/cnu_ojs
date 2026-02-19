@@ -37,6 +37,12 @@ export default function Home() {
           </div>
           <nav className="flex flex-wrap items-center gap-2 text-sm">
             <Link
+              href="/journals"
+              className="rounded-full border border-yellow-400/50 px-3 py-1.5 font-medium text-yellow-200 transition hover:bg-red-800"
+            >
+              Journals
+            </Link>
+            <Link
               href="/issues"
               className="rounded-full border border-yellow-400/50 px-3 py-1.5 font-medium text-yellow-200 transition hover:bg-red-800"
             >
@@ -110,6 +116,12 @@ export default function Home() {
             className="rounded-full border border-yellow-400/50 px-4 py-2 font-medium text-yellow-100 transition hover:bg-red-900"
           >
             API health endpoint
+          </Link>
+          <Link
+            href="/journals"
+            className="rounded-full border border-yellow-400/50 px-4 py-2 font-medium text-yellow-100 transition hover:bg-red-900"
+          >
+            Published journals
           </Link>
           <Link
             href="/issues"

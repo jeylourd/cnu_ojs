@@ -46,6 +46,7 @@ model User {
   reviews         Review[]
   managedJournals Journal[]    @relation("JournalEditor")
   decisionsMade   EditorialDecision[]
+  announcementsCreated Announcement[] @relation("AnnouncementAuthor")
   accounts        Account[]
   sessions        Session[]
 }
@@ -62,6 +63,24 @@ model Journal {
   updatedAt    DateTime     @updatedAt
   submissions  Submission[]
   issues       Issue[]
+  announcements Announcement[]
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  journalId   String
+  createdById String
+  title       String
+  content     String
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  journal   Journal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("AnnouncementAuthor", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([journalId, publishedAt])
+  @@index([createdAt])
 }
 
 model Submission {

@@ -18,9 +18,6 @@ export default async function IssuesCatalogPage() {
         },
       },
       submissions: {
-        where: {
-          status: "PUBLISHED",
-        },
         include: {
           author: {
             select: {
@@ -58,6 +55,12 @@ export default async function IssuesCatalogPage() {
               Home
             </Link>
             <Link
+              href="/journals"
+              className="rounded-full border border-yellow-400/50 px-3 py-1.5 font-medium text-yellow-200 transition hover:bg-red-800"
+            >
+              Journals
+            </Link>
+            <Link
               href="/login"
               className="rounded-full border border-yellow-400/50 px-3 py-1.5 font-medium text-yellow-200 transition hover:bg-red-800"
             >
@@ -92,6 +95,12 @@ export default async function IssuesCatalogPage() {
 
                 <div className="mt-3">
                   <Link
+                    href={`/journals/${issue.journal.slug}`}
+                    className="mr-2 inline-flex rounded-lg border border-yellow-400/50 px-3 py-1.5 text-xs font-medium text-yellow-100 transition hover:bg-red-800"
+                  >
+                    View journal page
+                  </Link>
+                  <Link
                     href={`/issues/${issue.id}`}
                     className="inline-flex rounded-lg border border-yellow-400/50 px-3 py-1.5 text-xs font-medium text-yellow-100 transition hover:bg-red-800"
                   >
@@ -110,6 +119,27 @@ export default async function IssuesCatalogPage() {
                           {submission.author.name || submission.author.email}
                         </p>
                         <p className="mt-1 text-xs text-yellow-100/70 line-clamp-3">{submission.abstract}</p>
+                        {submission.manuscriptUrl ? (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {(submission.manuscriptUrl.split("?")[0] ?? "").toLowerCase().endsWith(".pdf") ? (
+                              <Link
+                                href={`/issues/${issue.id}/articles/${submission.id}`}
+                                className="inline-flex rounded-lg border border-yellow-400/50 px-3 py-1.5 text-xs font-medium text-yellow-100 transition hover:bg-red-800"
+                              >
+                                View PDF
+                              </Link>
+                            ) : (
+                              <a
+                                href={submission.manuscriptUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex rounded-lg border border-yellow-400/50 px-3 py-1.5 text-xs font-medium text-yellow-100 transition hover:bg-red-800"
+                              >
+                                Open file
+                              </a>
+                            )}
+                          </div>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
