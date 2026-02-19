@@ -184,6 +184,7 @@ export default async function JournalSettingsPage() {
                         Slug: {journal.slug} · Submissions: {journal._count.submissions} · Issues: {journal._count.issues} · Current editor: {journal.editor.name || journal.editor.email}
                       </p>
                       <button
+                        data-preloader="on"
                         type="submit"
                         className="rounded-lg bg-yellow-400 px-4 py-2 text-sm font-semibold text-red-950 transition hover:bg-yellow-300"
                       >

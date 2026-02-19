@@ -241,6 +241,7 @@ export default async function DashboardAnnouncementsPage({ searchParams }: Dashb
 
               <div className="sm:col-span-2">
                 <button
+                  data-preloader="on"
                   type="submit"
                   className="rounded-lg bg-yellow-400 px-4 py-2.5 text-sm font-semibold text-red-950 transition hover:bg-yellow-300"
                 >
@@ -268,6 +269,7 @@ export default async function DashboardAnnouncementsPage({ searchParams }: Dashb
                 ))}
               </select>
               <button
+                data-preloader="on"
                 type="submit"
                 className="rounded-lg border border-yellow-400/70 px-3 py-1.5 text-xs font-medium text-yellow-100 transition hover:bg-red-800"
               >
@@ -298,6 +300,7 @@ export default async function DashboardAnnouncementsPage({ searchParams }: Dashb
                     <form action={publishAnnouncement}>
                       <input type="hidden" name="announcementId" value={announcement.id} />
                       <button
+                        data-preloader="on"
                         type="submit"
                         className="rounded-lg border border-yellow-400/70 px-3 py-1.5 text-xs font-medium text-yellow-100 transition hover:bg-red-800"
                       >

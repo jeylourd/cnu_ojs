@@ -154,6 +154,7 @@ export default async function JournalManagementPage() {
 
             <div className="sm:col-span-2">
               <button
+                data-preloader="on"
                 type="submit"
                 className="rounded-lg bg-yellow-400 px-4 py-2.5 text-sm font-semibold text-red-950 transition hover:bg-yellow-300"
               >

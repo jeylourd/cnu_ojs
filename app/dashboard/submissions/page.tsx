@@ -357,6 +357,7 @@ export default async function SubmissionManagementPage() {
 
                 <div className="sm:col-span-2">
                   <button
+                    data-preloader="on"
                     type="submit"
                     className="rounded-lg bg-yellow-400 px-4 py-2.5 text-sm font-semibold text-red-950 transition hover:bg-yellow-300"
                   >
@@ -486,6 +487,7 @@ export default async function SubmissionManagementPage() {
                                   ))}
                                 </select>
                                 <button
+                                  data-preloader="on"
                                   type="submit"
                                   className="rounded-lg border border-yellow-400/70 px-2.5 py-1.5 text-xs font-medium text-yellow-100 transition hover:bg-red-800"
                                 >

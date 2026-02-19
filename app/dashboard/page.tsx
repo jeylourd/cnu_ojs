@@ -163,6 +163,7 @@ export default async function DashboardPage() {
             }}
           >
             <button
+              data-preloader="on"
               type="submit"
               className="rounded-lg border border-yellow-400/70 px-4 py-2 text-sm font-medium text-yellow-100 transition hover:bg-red-800"
             >

@@ -387,6 +387,7 @@ export default async function PublicationManagementPage() {
 
               <div className="sm:col-span-4">
                 <button
+                  data-preloader="on"
                   type="submit"
                   className="rounded-lg bg-yellow-400 px-4 py-2.5 text-sm font-semibold text-red-950 transition hover:bg-yellow-300"
                 >
@@ -438,6 +439,7 @@ export default async function PublicationManagementPage() {
 
               <div className="sm:col-span-2">
                 <button
+                  data-preloader="on"
                   type="submit"
                   className="rounded-lg border border-yellow-400/70 px-4 py-2.5 text-sm font-medium text-yellow-100 transition hover:bg-red-800"
                 >
@@ -473,6 +475,7 @@ export default async function PublicationManagementPage() {
                     <form action={publishIssue}>
                       <input type="hidden" name="issueId" value={issue.id} />
                       <button
+                        data-preloader="on"
                         type="submit"
                         className="rounded-lg bg-yellow-400 px-4 py-2 text-sm font-semibold text-red-950 transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
                         disabled={!!issue.publishedAt}
