@@ -15,6 +15,35 @@ type ActivityItem = {
   type: "USERS" | "SUBMISSIONS" | "REVIEWS" | "DECISIONS" | "PUBLICATIONS";
 };
 
+type RecentUserItem = { id: string; name: string; email: string; createdAt: Date };
+type RecentSubmissionItem = {
+  id: string;
+  title: string;
+  createdAt: Date;
+  author: { name: string; email: string };
+};
+type RecentReviewItem = {
+  id: string;
+  submittedAt: Date | null;
+  reviewer: { name: string; email: string };
+  submission: { title: string };
+};
+type RecentDecisionItem = {
+  id: string;
+  status: string;
+  decidedAt: Date;
+  decidedBy: { name: string; email: string };
+  submission: { title: string };
+};
+type RecentPublishedIssueItem = {
+  id: string;
+  volume: number;
+  issueNumber: number;
+  year: number;
+  publishedAt: Date | null;
+  journal: { name: string };
+};
+
 type PlatformActivityPageProps = {
   searchParams?: Promise<{
     days?: string;
@@ -126,35 +155,35 @@ export default async function PlatformActivityPage({ searchParams }: PlatformAct
   ]);
 
   const activity: ActivityItem[] = [
-    ...recentUsers.map((item) => ({
+    ...recentUsers.map((item: RecentUserItem) => ({
       id: `user-${item.id}`,
       label: "New user registered",
       actor: item.name || item.email,
       when: item.createdAt,
       type: "USERS" as const,
     })),
-    ...recentSubmissions.map((item) => ({
+    ...recentSubmissions.map((item: RecentSubmissionItem) => ({
       id: `submission-${item.id}`,
       label: `Submission created: ${item.title}`,
       actor: item.author.name || item.author.email,
       when: item.createdAt,
       type: "SUBMISSIONS" as const,
     })),
-    ...recentReviews.map((item) => ({
+    ...recentReviews.map((item: RecentReviewItem) => ({
       id: `review-${item.id}`,
       label: `Review submitted for: ${item.submission.title}`,
       actor: item.reviewer.name || item.reviewer.email,
       when: item.submittedAt ?? new Date(0),
       type: "REVIEWS" as const,
     })),
-    ...recentDecisions.map((item) => ({
+    ...recentDecisions.map((item: RecentDecisionItem) => ({
       id: `decision-${item.id}`,
       label: `${item.status} recorded for: ${item.submission.title}`,
       actor: item.decidedBy.name || item.decidedBy.email,
       when: item.decidedAt,
       type: "DECISIONS" as const,
     })),
-    ...recentPublishedIssues.map((item) => ({
+    ...recentPublishedIssues.map((item: RecentPublishedIssueItem) => ({
       id: `issue-${item.id}`,
       label: `Issue published: ${item.journal.name} Vol ${item.volume} No ${item.issueNumber} (${item.year})`,
       actor: "System",
