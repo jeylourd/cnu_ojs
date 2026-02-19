@@ -97,6 +97,38 @@ Notes:
 - `GET /api/health` runs a lightweight `SELECT 1` against your configured Postgres database.
 - Returns `200` when DB is connected and `503` when disconnected.
 
+## Deploy to Vercel
+
+1. Push this repository to GitHub.
+2. In Vercel, click **Add New Project** and import this repo.
+3. Framework preset should auto-detect as **Next.js**.
+4. In **Environment Variables**, add:
+	- `DATABASE_URL`
+	- `DIRECT_URL`
+	- `AUTH_SECRET`
+	- `AUTH_URL` (set to your Vercel production URL, e.g. `https://your-app.vercel.app`)
+	- `SMTP_HOST`
+	- `SMTP_PORT`
+	- `SMTP_SECURE`
+	- `SMTP_USER`
+	- `SMTP_PASS`
+	- `SMTP_FROM`
+	- `NEXT_PUBLIC_SUPABASE_URL`
+	- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY`
+5. Deploy.
+
+After first deploy, run Prisma schema sync once against production DB:
+
+```bash
+npx prisma db push
+```
+
+Optional seed in production:
+
+```bash
+npm run db:seed
+```
+
 ## Prisma Commands
 
 - `npm run db:generate` — generate Prisma Client
