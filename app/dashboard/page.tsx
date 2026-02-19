@@ -146,7 +146,7 @@ export default async function DashboardPage() {
       <div className="flex w-full flex-col gap-8">
         <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-yellow-500/50 bg-red-900 p-6 shadow-sm">
           <div className="flex items-start gap-3">
-            <Image src="/cnu-logo.png" alt="Cebu Normal University logo" width={56} height={56} className="rounded-full border border-yellow-400/60" />
+            <Image src="/CNU-Logo.png" alt="Cebu Normal University logo" width={56} height={56} className="rounded-full border border-yellow-400/60" />
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-yellow-300">Role dashboard</p>
               <h1 className="mt-2 text-2xl font-semibold text-yellow-50">Welcome, {session.user.name}</h1>
