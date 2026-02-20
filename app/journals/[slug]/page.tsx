@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -28,6 +29,7 @@ export default async function JournalDetailPage({ params }: JournalDetailPagePro
           issueNumber: true,
           year: true,
           title: true,
+          featuredImageUrl: true,
           publishedAt: true,
           _count: {
             select: {
@@ -72,6 +74,15 @@ export default async function JournalDetailPage({ params }: JournalDetailPagePro
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
             <article className="rounded-xl border border-yellow-500/30 p-4">
               <p className="text-xs uppercase tracking-[0.12em] text-yellow-200/80">Current</p>
+              {currentIssue?.featuredImageUrl ? (
+                <Image
+                  src={currentIssue.featuredImageUrl}
+                  alt={`Featured photo for volume ${currentIssue.volume} issue ${currentIssue.issueNumber}`}
+                  width={640}
+                  height={280}
+                  className="mt-2 h-28 w-full rounded-lg border border-yellow-500/30 object-cover"
+                />
+              ) : null}
               <p className="mt-2 text-sm text-yellow-100/85">
                 {currentIssue
                   ? `Vol ${currentIssue.volume} No ${currentIssue.issueNumber} (${currentIssue.year})`

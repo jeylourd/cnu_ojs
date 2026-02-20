@@ -9,6 +9,30 @@ import { prisma } from "@/lib/prisma";
 
 const publicationRoles = new Set(["ADMIN", "EDITOR"]);
 
+function normalizeIssueImageUrl(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.startsWith("/")) {
+    return trimmed;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 export default async function PublicationManagementPage() {
   const session = await auth();
 
@@ -120,7 +144,7 @@ export default async function PublicationManagementPage() {
     const issueNumber = Number.parseInt(String(formData.get("issueNumber") ?? "").trim(), 10);
     const year = Number.parseInt(String(formData.get("year") ?? "").trim(), 10);
     const title = String(formData.get("title") ?? "").trim();
-    const featuredImageUrl = String(formData.get("featuredImageUrl") ?? "").trim();
+    const featuredImageUrl = normalizeIssueImageUrl(String(formData.get("featuredImageUrl") ?? ""));
 
     if (!journalId || Number.isNaN(volume) || Number.isNaN(issueNumber) || Number.isNaN(year)) {
       return;
@@ -147,7 +171,7 @@ export default async function PublicationManagementPage() {
           issueNumber,
           year,
           title: title || null,
-          featuredImageUrl: featuredImageUrl || null,
+          featuredImageUrl,
         },
       });
     } catch {
@@ -171,9 +195,14 @@ export default async function PublicationManagementPage() {
     }
 
     const issueId = String(formData.get("issueId") ?? "").trim();
-    const featuredImageUrl = String(formData.get("featuredImageUrl") ?? "").trim();
+    const featuredImageUrlInput = String(formData.get("featuredImageUrl") ?? "");
+    const featuredImageUrl = normalizeIssueImageUrl(featuredImageUrlInput);
 
     if (!issueId) {
+      return;
+    }
+
+    if (featuredImageUrlInput.trim() && !featuredImageUrl) {
       return;
     }
 
@@ -200,7 +229,7 @@ export default async function PublicationManagementPage() {
     await prisma.issue.update({
       where: { id: issue.id },
       data: {
-        featuredImageUrl: featuredImageUrl || null,
+        featuredImageUrl,
       },
     });
 
@@ -443,10 +472,10 @@ export default async function PublicationManagementPage() {
               <label className="block text-sm font-medium text-yellow-100 sm:col-span-4">
                 Featured photo URL (optional)
                 <input
-                  type="url"
+                  type="text"
                   name="featuredImageUrl"
                   className="mt-1 w-full rounded-lg border border-yellow-500/40 bg-red-950 px-3 py-2 text-sm text-yellow-100 outline-none ring-yellow-400 focus:ring-2"
-                  placeholder="https://example.com/issue-cover.jpg"
+                  placeholder="https://example.com/issue-cover.jpg or /uploads/issues/cover.jpg"
                 />
               </label>
 
@@ -550,27 +579,27 @@ export default async function PublicationManagementPage() {
                     </form>
                   </div>
 
-                  <div className="mt-4 space-y-3">
+                  <div className="mt-4 rounded-lg border border-yellow-500/25 p-3">
                     {issue.featuredImageUrl ? (
-                      <div className="overflow-hidden rounded-lg border border-yellow-500/30 bg-red-950">
-                        <img
-                          src={issue.featuredImageUrl}
-                          alt={`Featured image for ${issue.title || `Volume ${issue.volume} Issue ${issue.issueNumber}`}`}
-                          className="h-44 w-full object-cover"
-                        />
-                      </div>
+                      <Image
+                        src={issue.featuredImageUrl}
+                        alt={`Featured photo for ${issue.journal.name} volume ${issue.volume} issue ${issue.issueNumber}`}
+                        width={1200}
+                        height={650}
+                        className="mb-3 h-44 w-full rounded-lg border border-yellow-500/30 object-cover"
+                      />
                     ) : (
-                      <p className="text-xs text-yellow-200/80">No featured photo set.</p>
+                      <p className="mb-3 text-xs text-yellow-100/70">No featured photo set for this issue.</p>
                     )}
 
-                    <form action={updateIssueFeaturedPhoto} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                    <form action={updateIssueFeaturedPhoto} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
                       <input type="hidden" name="issueId" value={issue.id} />
                       <input
-                        type="url"
+                        type="text"
                         name="featuredImageUrl"
                         defaultValue={issue.featuredImageUrl ?? ""}
-                        placeholder="https://example.com/issue-cover.jpg"
                         className="w-full rounded-lg border border-yellow-500/40 bg-red-950 px-3 py-2 text-sm text-yellow-100 outline-none ring-yellow-400 focus:ring-2"
+                        placeholder="https://example.com/issue-cover.jpg or /uploads/issues/cover.jpg"
                       />
                       <button
                         data-preloader="on"

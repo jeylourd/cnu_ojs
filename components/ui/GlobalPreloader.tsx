@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export function GlobalPreloader() {
   const pathname = usePathname();
@@ -11,20 +11,20 @@ export function GlobalPreloader() {
   const transientCountRef = useRef(0);
   const timersRef = useRef<number[]>([]);
 
-  const updateVisibility = () => {
+  const updateVisibility = useCallback(() => {
     setVisible(persistentCountRef.current > 0 || transientCountRef.current > 0);
-  };
+  }, []);
 
-  const addTimer = (callback: () => void, ms: number) => {
+  const addTimer = useCallback((callback: () => void, ms: number) => {
     const timer = window.setTimeout(() => {
       callback();
       timersRef.current = timersRef.current.filter((id) => id !== timer);
     }, ms);
 
     timersRef.current.push(timer);
-  };
+  }, []);
 
-  const startPersistent = () => {
+  const startPersistent = useCallback(() => {
     persistentCountRef.current += 1;
     updateVisibility();
 
@@ -32,9 +32,9 @@ export function GlobalPreloader() {
       persistentCountRef.current = Math.max(0, persistentCountRef.current - 1);
       updateVisibility();
     }, 20000);
-  };
+  }, [addTimer, updateVisibility]);
 
-  const startTransient = (duration = 650) => {
+  const startTransient = useCallback((duration = 650) => {
     transientCountRef.current += 1;
     updateVisibility();
 
@@ -42,9 +42,9 @@ export function GlobalPreloader() {
       transientCountRef.current = Math.max(0, transientCountRef.current - 1);
       updateVisibility();
     }, duration);
-  };
+  }, [addTimer, updateVisibility]);
 
-  const shouldTriggerButtonLoading = (button: HTMLButtonElement) => {
+  const shouldTriggerButtonLoading = useCallback((button: HTMLButtonElement) => {
     if (button.disabled || button.getAttribute("aria-disabled") === "true") {
       return false;
     }
@@ -62,7 +62,7 @@ export function GlobalPreloader() {
       button.getAttribute("data-loading") === "true" ||
       button.getAttribute("aria-busy") === "true"
     );
-  };
+  }, []);
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
@@ -103,14 +103,14 @@ export function GlobalPreloader() {
       document.removeEventListener("click", onClick, true);
       document.removeEventListener("submit", onSubmit, true);
     };
-  }, []);
+  }, [shouldTriggerButtonLoading, startPersistent, startTransient]);
 
   useEffect(() => {
     persistentCountRef.current = 0;
     addTimer(() => {
       updateVisibility();
     }, 120);
-  }, [pathname]);
+  }, [addTimer, pathname, updateVisibility]);
 
   useEffect(() => {
     return () => {

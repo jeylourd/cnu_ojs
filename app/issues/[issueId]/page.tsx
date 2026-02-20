@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -51,6 +52,16 @@ export default async function IssueDetailPage({ params }: IssueDetailPageProps) 
     <main className="min-h-screen bg-red-950 px-6 py-8 text-yellow-100">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
         <header className="rounded-2xl border border-yellow-500/50 bg-red-900 px-5 py-4 shadow-sm">
+          {issue.featuredImageUrl ? (
+            <Image
+              src={issue.featuredImageUrl}
+              alt={`Featured photo for ${issue.journal.name} volume ${issue.volume} issue ${issue.issueNumber}`}
+              width={1600}
+              height={900}
+              className="mb-4 h-64 w-full rounded-xl border border-yellow-500/30 object-cover"
+            />
+          ) : null}
+
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-2">
               <p className="text-xs uppercase tracking-[0.2em] text-yellow-300">Issue Detail</p>
@@ -101,16 +112,6 @@ export default async function IssueDetailPage({ params }: IssueDetailPageProps) 
             </Link>
           </div>
         </header>
-
-        {issue.featuredImageUrl ? (
-          <section className="overflow-hidden rounded-2xl border border-yellow-500/40 bg-red-900/70 shadow-sm">
-            <img
-              src={issue.featuredImageUrl}
-              alt={`Featured image for ${issue.title || `Volume ${issue.volume} Issue ${issue.issueNumber}`}`}
-              className="h-64 w-full object-cover"
-            />
-          </section>
-        ) : null}
 
         <section className="rounded-2xl border border-yellow-500/40 bg-red-900/70 p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-yellow-100">Published Articles ({issue.submissions.length})</h2>

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { prisma } from "@/lib/prisma";
@@ -78,13 +79,13 @@ export default async function IssuesCatalogPage() {
             {issues.map((issue) => (
               <article key={issue.id} className="rounded-2xl border border-yellow-500/40 bg-red-900/70 p-6 shadow-sm">
                 {issue.featuredImageUrl ? (
-                  <div className="mb-4 overflow-hidden rounded-xl border border-yellow-500/30 bg-red-950">
-                    <img
-                      src={issue.featuredImageUrl}
-                      alt={`Featured image for ${issue.title || `Volume ${issue.volume} Issue ${issue.issueNumber}`}`}
-                      className="h-48 w-full object-cover"
-                    />
-                  </div>
+                  <Image
+                    src={issue.featuredImageUrl}
+                    alt={`Featured photo for ${issue.journal.name} volume ${issue.volume} issue ${issue.issueNumber}`}
+                    width={1600}
+                    height={700}
+                    className="mb-4 h-52 w-full rounded-xl border border-yellow-500/30 object-cover"
+                  />
                 ) : null}
 
                 <div className="flex flex-wrap items-start justify-between gap-3">

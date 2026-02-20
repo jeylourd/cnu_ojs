@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -69,13 +70,13 @@ export default async function JournalCurrentPage({ params }: JournalCurrentPageP
             <div className="space-y-4">
               <div className="rounded-xl border border-yellow-500/30 p-4">
                 {currentIssue.featuredImageUrl ? (
-                  <div className="mb-4 overflow-hidden rounded-lg border border-yellow-500/30 bg-red-950">
-                    <img
-                      src={currentIssue.featuredImageUrl}
-                      alt={`Featured image for ${currentIssue.title || `Volume ${currentIssue.volume} Issue ${currentIssue.issueNumber}`}`}
-                      className="h-52 w-full object-cover"
-                    />
-                  </div>
+                  <Image
+                    src={currentIssue.featuredImageUrl}
+                    alt={`Featured photo for ${journal.name} volume ${currentIssue.volume} issue ${currentIssue.issueNumber}`}
+                    width={1400}
+                    height={750}
+                    className="mb-4 h-56 w-full rounded-lg border border-yellow-500/30 object-cover"
+                  />
                 ) : null}
 
                 <h2 className="text-lg font-semibold text-yellow-50">

@@ -1,2 +1,2 @@
-ALTER TABLE "Issue"
-ADD COLUMN "featuredImageUrl" TEXT;
+-- AlterTable
+ALTER TABLE "Issue" ADD COLUMN "featuredImageUrl" TEXT;

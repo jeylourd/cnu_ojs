@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -67,13 +68,13 @@ export default async function JournalArchivesPage({ params }: JournalArchivesPag
               {journal.issues.map((issue) => (
                 <article key={issue.id} className="rounded-xl border border-yellow-500/30 p-4">
                   {issue.featuredImageUrl ? (
-                    <div className="mb-4 overflow-hidden rounded-lg border border-yellow-500/30 bg-red-950">
-                      <img
-                        src={issue.featuredImageUrl}
-                        alt={`Featured image for ${issue.title || `Volume ${issue.volume} Issue ${issue.issueNumber}`}`}
-                        className="h-44 w-full object-cover"
-                      />
-                    </div>
+                    <Image
+                      src={issue.featuredImageUrl}
+                      alt={`Featured photo for volume ${issue.volume} issue ${issue.issueNumber}`}
+                      width={1400}
+                      height={700}
+                      className="mb-4 h-48 w-full rounded-lg border border-yellow-500/30 object-cover"
+                    />
                   ) : null}
 
                   <div className="flex flex-wrap items-start justify-between gap-3">
