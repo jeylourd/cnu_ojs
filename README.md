@@ -36,6 +36,7 @@ Required keys:
 - `SMTP_USER`
 - `SMTP_PASS`
 - `SMTP_FROM`
+- `BLOB_READ_WRITE_TOKEN` (required in Vercel for issue featured photo uploads)
 
 Supabase tips:
 
@@ -120,6 +121,7 @@ Notes:
 	- `SMTP_USER`
 	- `SMTP_PASS`
 	- `SMTP_FROM`
+	- `BLOB_READ_WRITE_TOKEN`
 	- `NEXT_PUBLIC_SUPABASE_URL`
 	- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY`
 5. Deploy.

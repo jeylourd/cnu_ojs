@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { put } from "@vercel/blob";
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -45,28 +46,44 @@ function getIssueImageExtension(file: File) {
 }
 
 async function saveIssueFeaturedImage(file: File) {
-  const maxBytes = 5 * 1024 * 1024;
+  try {
+    const maxBytes = 5 * 1024 * 1024;
 
-  if (file.size <= 0 || file.size > maxBytes) {
+    if (file.size <= 0 || file.size > maxBytes) {
+      return null;
+    }
+
+    const extension = getIssueImageExtension(file);
+
+    if (!extension) {
+      return null;
+    }
+
+    const fileName = `${Date.now()}-${randomUUID()}${extension}`;
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+
+    if (blobToken) {
+      const blob = await put(`issues/${fileName}`, file, {
+        access: "public",
+        addRandomSuffix: false,
+        token: blobToken,
+      });
+
+      return blob.url;
+    }
+
+    const uploadsDir = path.join(process.cwd(), "public", "uploads", "issues");
+    await mkdir(uploadsDir, { recursive: true });
+
+    const filePath = path.join(uploadsDir, fileName);
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+
+    await writeFile(filePath, fileBuffer);
+
+    return `/uploads/issues/${fileName}`;
+  } catch {
     return null;
   }
-
-  const extension = getIssueImageExtension(file);
-
-  if (!extension) {
-    return null;
-  }
-
-  const uploadsDir = path.join(process.cwd(), "public", "uploads", "issues");
-  await mkdir(uploadsDir, { recursive: true });
-
-  const fileName = `${Date.now()}-${randomUUID()}${extension}`;
-  const filePath = path.join(uploadsDir, fileName);
-  const fileBuffer = Buffer.from(await file.arrayBuffer());
-
-  await writeFile(filePath, fileBuffer);
-
-  return `/uploads/issues/${fileName}`;
 }
 
 export default async function PublicationManagementPage() {
