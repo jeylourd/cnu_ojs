@@ -29,6 +29,7 @@ Required keys:
 - `DIRECT_URL`
 - `AUTH_SECRET`
 - `AUTH_URL`
+- `APP_URL` (recommended: URL used in verification/reset emails)
 - `SMTP_HOST`
 - `SMTP_PORT`
 - `SMTP_SECURE`
@@ -40,6 +41,12 @@ Supabase tips:
 
 - Use pooled connection string (Transaction mode, port `6543`) for `DATABASE_URL`
 - Use direct connection string (Session mode, port `5432`) for `DIRECT_URL`
+
+URL tips:
+
+- Set `APP_URL=http://localhost:3000` for local development so email links always point to local.
+- Set `APP_URL` to your production domain in production deployments.
+- `AUTH_URL` is still used by Auth.js; `APP_URL` is used for email link generation.
 
 ## 3) Set up database schema
 

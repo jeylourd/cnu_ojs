@@ -2,8 +2,50 @@ import nodemailer from "nodemailer";
 
 const appName = "CNU OJS";
 
+function normalizeBaseUrl(value?: string) {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    return new URL(trimmed).toString().replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+}
+
 function getBaseUrl() {
-  return process.env.AUTH_URL || "http://localhost:3000";
+  const explicitAppUrl = normalizeBaseUrl(process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL);
+
+  if (explicitAppUrl) {
+    return explicitAppUrl;
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    return "http://localhost:3000";
+  }
+
+  const authUrl = normalizeBaseUrl(process.env.AUTH_URL);
+
+  if (authUrl) {
+    return authUrl;
+  }
+
+  const vercelUrl = normalizeBaseUrl(
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
+  );
+
+  if (vercelUrl) {
+    return vercelUrl;
+  }
+
+  return "http://localhost:3000";
 }
 
 function getMailConfig() {
