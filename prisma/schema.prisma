@@ -110,6 +110,7 @@ model Issue {
   issueNumber Int
   year        Int
   title       String?
+  featuredImageUrl String?
   publishedAt DateTime?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt

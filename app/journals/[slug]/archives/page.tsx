@@ -26,6 +26,7 @@ export default async function JournalArchivesPage({ params }: JournalArchivesPag
           issueNumber: true,
           year: true,
           title: true,
+          featuredImageUrl: true,
           publishedAt: true,
           _count: {
             select: {
@@ -65,6 +66,16 @@ export default async function JournalArchivesPage({ params }: JournalArchivesPag
             <div className="mt-4 space-y-4">
               {journal.issues.map((issue) => (
                 <article key={issue.id} className="rounded-xl border border-yellow-500/30 p-4">
+                  {issue.featuredImageUrl ? (
+                    <div className="mb-4 overflow-hidden rounded-lg border border-yellow-500/30 bg-red-950">
+                      <img
+                        src={issue.featuredImageUrl}
+                        alt={`Featured image for ${issue.title || `Volume ${issue.volume} Issue ${issue.issueNumber}`}`}
+                        className="h-44 w-full object-cover"
+                      />
+                    </div>
+                  ) : null}
+
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <h3 className="text-base font-semibold text-yellow-50">

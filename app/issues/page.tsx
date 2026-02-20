@@ -77,6 +77,16 @@ export default async function IssuesCatalogPage() {
           <section className="space-y-4">
             {issues.map((issue) => (
               <article key={issue.id} className="rounded-2xl border border-yellow-500/40 bg-red-900/70 p-6 shadow-sm">
+                {issue.featuredImageUrl ? (
+                  <div className="mb-4 overflow-hidden rounded-xl border border-yellow-500/30 bg-red-950">
+                    <img
+                      src={issue.featuredImageUrl}
+                      alt={`Featured image for ${issue.title || `Volume ${issue.volume} Issue ${issue.issueNumber}`}`}
+                      className="h-48 w-full object-cover"
+                    />
+                  </div>
+                ) : null}
+
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h2 className="text-xl font-semibold text-yellow-50">

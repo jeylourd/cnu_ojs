@@ -68,6 +68,16 @@ export default async function JournalCurrentPage({ params }: JournalCurrentPageP
           ) : (
             <div className="space-y-4">
               <div className="rounded-xl border border-yellow-500/30 p-4">
+                {currentIssue.featuredImageUrl ? (
+                  <div className="mb-4 overflow-hidden rounded-lg border border-yellow-500/30 bg-red-950">
+                    <img
+                      src={currentIssue.featuredImageUrl}
+                      alt={`Featured image for ${currentIssue.title || `Volume ${currentIssue.volume} Issue ${currentIssue.issueNumber}`}`}
+                      className="h-52 w-full object-cover"
+                    />
+                  </div>
+                ) : null}
+
                 <h2 className="text-lg font-semibold text-yellow-50">
                   Vol {currentIssue.volume} No {currentIssue.issueNumber} ({currentIssue.year})
                 </h2>

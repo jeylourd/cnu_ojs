@@ -102,6 +102,16 @@ export default async function IssueDetailPage({ params }: IssueDetailPageProps) 
           </div>
         </header>
 
+        {issue.featuredImageUrl ? (
+          <section className="overflow-hidden rounded-2xl border border-yellow-500/40 bg-red-900/70 shadow-sm">
+            <img
+              src={issue.featuredImageUrl}
+              alt={`Featured image for ${issue.title || `Volume ${issue.volume} Issue ${issue.issueNumber}`}`}
+              className="h-64 w-full object-cover"
+            />
+          </section>
+        ) : null}
+
         <section className="rounded-2xl border border-yellow-500/40 bg-red-900/70 p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-yellow-100">Published Articles ({issue.submissions.length})</h2>
 

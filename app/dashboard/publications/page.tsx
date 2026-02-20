@@ -120,6 +120,7 @@ export default async function PublicationManagementPage() {
     const issueNumber = Number.parseInt(String(formData.get("issueNumber") ?? "").trim(), 10);
     const year = Number.parseInt(String(formData.get("year") ?? "").trim(), 10);
     const title = String(formData.get("title") ?? "").trim();
+    const featuredImageUrl = String(formData.get("featuredImageUrl") ?? "").trim();
 
     if (!journalId || Number.isNaN(volume) || Number.isNaN(issueNumber) || Number.isNaN(year)) {
       return;
@@ -146,6 +147,7 @@ export default async function PublicationManagementPage() {
           issueNumber,
           year,
           title: title || null,
+          featuredImageUrl: featuredImageUrl || null,
         },
       });
     } catch {
@@ -153,6 +155,59 @@ export default async function PublicationManagementPage() {
     }
 
     revalidatePath("/dashboard/publications");
+  }
+
+  async function updateIssueFeaturedPhoto(formData: FormData) {
+    "use server";
+
+    const currentSession = await auth();
+
+    if (!currentSession?.user) {
+      redirect("/login");
+    }
+
+    if (!publicationRoles.has(currentSession.user.role)) {
+      redirect("/forbidden");
+    }
+
+    const issueId = String(formData.get("issueId") ?? "").trim();
+    const featuredImageUrl = String(formData.get("featuredImageUrl") ?? "").trim();
+
+    if (!issueId) {
+      return;
+    }
+
+    const issue = await prisma.issue.findUnique({
+      where: { id: issueId },
+      include: {
+        journal: {
+          select: {
+            editorId: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    if (!issue) {
+      return;
+    }
+
+    if (currentSession.user.role === "EDITOR" && issue.journal.editorId !== currentSession.user.id) {
+      redirect("/forbidden");
+    }
+
+    await prisma.issue.update({
+      where: { id: issue.id },
+      data: {
+        featuredImageUrl: featuredImageUrl || null,
+      },
+    });
+
+    revalidatePath("/dashboard/publications");
+    if (issue.publishedAt) {
+      revalidatePublicPublicationPaths(issue.journal.slug, issue.id);
+    }
   }
 
   async function assignSubmissionToIssue(formData: FormData) {
@@ -385,6 +440,16 @@ export default async function PublicationManagementPage() {
                 />
               </label>
 
+              <label className="block text-sm font-medium text-yellow-100 sm:col-span-4">
+                Featured photo URL (optional)
+                <input
+                  type="url"
+                  name="featuredImageUrl"
+                  className="mt-1 w-full rounded-lg border border-yellow-500/40 bg-red-950 px-3 py-2 text-sm text-yellow-100 outline-none ring-yellow-400 focus:ring-2"
+                  placeholder="https://example.com/issue-cover.jpg"
+                />
+              </label>
+
               <div className="sm:col-span-4">
                 <button
                   data-preloader="on"
@@ -481,6 +546,38 @@ export default async function PublicationManagementPage() {
                         disabled={!!issue.publishedAt}
                       >
                         {issue.publishedAt ? "Already published" : "Mark as published"}
+                      </button>
+                    </form>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {issue.featuredImageUrl ? (
+                      <div className="overflow-hidden rounded-lg border border-yellow-500/30 bg-red-950">
+                        <img
+                          src={issue.featuredImageUrl}
+                          alt={`Featured image for ${issue.title || `Volume ${issue.volume} Issue ${issue.issueNumber}`}`}
+                          className="h-44 w-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <p className="text-xs text-yellow-200/80">No featured photo set.</p>
+                    )}
+
+                    <form action={updateIssueFeaturedPhoto} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                      <input type="hidden" name="issueId" value={issue.id} />
+                      <input
+                        type="url"
+                        name="featuredImageUrl"
+                        defaultValue={issue.featuredImageUrl ?? ""}
+                        placeholder="https://example.com/issue-cover.jpg"
+                        className="w-full rounded-lg border border-yellow-500/40 bg-red-950 px-3 py-2 text-sm text-yellow-100 outline-none ring-yellow-400 focus:ring-2"
+                      />
+                      <button
+                        data-preloader="on"
+                        type="submit"
+                        className="rounded-lg border border-yellow-400/70 px-4 py-2 text-sm font-medium text-yellow-100 transition hover:bg-red-800"
+                      >
+                        Save photo
                       </button>
                     </form>
                   </div>
