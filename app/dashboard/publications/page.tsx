@@ -13,6 +13,25 @@ import { prisma } from "@/lib/prisma";
 
 const publicationRoles = new Set(["ADMIN", "EDITOR"]);
 
+type UploadErrorCode = "FILE_TOO_LARGE" | "UNSUPPORTED_TYPE" | "STORAGE_NOT_CONFIGURED" | "UPLOAD_FAILED";
+
+type SaveIssueFeaturedImageResult =
+  | {
+      ok: true;
+      url: string;
+    }
+  | {
+      ok: false;
+      code: UploadErrorCode;
+    };
+
+const uploadErrorMessages: Record<UploadErrorCode, string> = {
+  FILE_TOO_LARGE: "Featured photo must be 5MB or less.",
+  UNSUPPORTED_TYPE: "Unsupported image type. Use JPG, PNG, or WEBP.",
+  STORAGE_NOT_CONFIGURED: "Upload storage is not configured. Set BLOB_READ_WRITE_TOKEN on Vercel.",
+  UPLOAD_FAILED: "Failed to upload featured photo. Please try again.",
+};
+
 function resolveFeaturedImage(value: string | null | undefined) {
   const trimmed = String(value ?? "").trim();
 
@@ -75,33 +94,56 @@ function getIssueImageExtension(file: File) {
   return null;
 }
 
-async function saveIssueFeaturedImage(file: File) {
-  try {
-    const maxBytes = 5 * 1024 * 1024;
+async function saveIssueFeaturedImage(file: File): Promise<SaveIssueFeaturedImageResult> {
+  const maxBytes = 5 * 1024 * 1024;
 
-    if (file.size <= 0 || file.size > maxBytes) {
-      return null;
-    }
+  if (file.size <= 0 || file.size > maxBytes) {
+    return {
+      ok: false,
+      code: "FILE_TOO_LARGE",
+    };
+  }
 
-    const extension = getIssueImageExtension(file);
+  const extension = getIssueImageExtension(file);
 
-    if (!extension) {
-      return null;
-    }
+  if (!extension) {
+    return {
+      ok: false,
+      code: "UNSUPPORTED_TYPE",
+    };
+  }
 
-    const fileName = `${Date.now()}-${randomUUID()}${extension}`;
-    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+  const fileName = `${Date.now()}-${randomUUID()}${extension}`;
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
 
-    if (blobToken) {
+  if (blobToken) {
+    try {
       const blob = await put(`issues/${fileName}`, file, {
         access: "public",
         addRandomSuffix: false,
         token: blobToken,
       });
 
-      return blob.url;
+      return {
+        ok: true,
+        url: blob.url,
+      };
+    } catch {
+      return {
+        ok: false,
+        code: "UPLOAD_FAILED",
+      };
     }
+  }
 
+  if (process.env.VERCEL === "1" || process.env.VERCEL_ENV) {
+    return {
+      ok: false,
+      code: "STORAGE_NOT_CONFIGURED",
+    };
+  }
+
+  try {
     const uploadsDir = path.join(process.cwd(), "public", "uploads", "issues");
     await mkdir(uploadsDir, { recursive: true });
 
@@ -110,13 +152,27 @@ async function saveIssueFeaturedImage(file: File) {
 
     await writeFile(filePath, fileBuffer);
 
-    return `/uploads/issues/${fileName}`;
+    return {
+      ok: true,
+      url: `/uploads/issues/${fileName}`,
+    };
   } catch {
-    return null;
+    return {
+      ok: false,
+      code: "UPLOAD_FAILED",
+    };
   }
 }
 
-export default async function PublicationManagementPage() {
+type PublicationManagementPageProps = {
+  searchParams?: Promise<{
+    uploadError?: string;
+    uploadSuccess?: string;
+  }>;
+};
+
+export default async function PublicationManagementPage({ searchParams }: PublicationManagementPageProps) {
+  const params = await searchParams;
   const session = await auth();
 
   if (!session?.user) {
@@ -249,7 +305,13 @@ export default async function PublicationManagementPage() {
     let featuredImageUrl: string | null = null;
 
     if (featuredPhotoFile instanceof File && featuredPhotoFile.size > 0) {
-      featuredImageUrl = await saveIssueFeaturedImage(featuredPhotoFile);
+      const uploadResult = await saveIssueFeaturedImage(featuredPhotoFile);
+
+      if (!uploadResult.ok) {
+        redirect(`/dashboard/publications?uploadError=${uploadResult.code}`);
+      }
+
+      featuredImageUrl = uploadResult.url;
     }
 
     try {
@@ -267,7 +329,7 @@ export default async function PublicationManagementPage() {
       return;
     }
 
-    revalidatePath("/dashboard/publications");
+    redirect("/dashboard/publications?uploadSuccess=1");
   }
 
   async function updateIssueFeaturedPhoto(formData: FormData) {
@@ -316,11 +378,13 @@ export default async function PublicationManagementPage() {
     if (clearPhoto) {
       featuredImageUrl = null;
     } else if (featuredPhotoFile instanceof File && featuredPhotoFile.size > 0) {
-      featuredImageUrl = await saveIssueFeaturedImage(featuredPhotoFile);
+      const uploadResult = await saveIssueFeaturedImage(featuredPhotoFile);
 
-      if (!featuredImageUrl) {
-        return;
+      if (!uploadResult.ok) {
+        redirect(`/dashboard/publications?uploadError=${uploadResult.code}`);
       }
+
+      featuredImageUrl = uploadResult.url;
     }
 
     if (featuredImageUrl === undefined) {
@@ -338,6 +402,8 @@ export default async function PublicationManagementPage() {
     if (issue.publishedAt) {
       revalidatePublicPublicationPaths(issue.journal.slug, issue.id);
     }
+
+    redirect("/dashboard/publications?uploadSuccess=1");
   }
 
   async function assignSubmissionToIssue(formData: FormData) {
@@ -504,6 +570,18 @@ export default async function PublicationManagementPage() {
           <DashboardSidebar role={session.user.role} />
 
           <div className="space-y-8">
+            {params?.uploadError && params.uploadError in uploadErrorMessages ? (
+              <section className="rounded-xl border border-red-300/60 bg-red-950/50 px-4 py-3 text-sm text-red-100">
+                {uploadErrorMessages[params.uploadError as UploadErrorCode]}
+              </section>
+            ) : null}
+
+            {params?.uploadSuccess === "1" ? (
+              <section className="rounded-xl border border-yellow-300/60 bg-red-900/70 px-4 py-3 text-sm text-yellow-100">
+                Featured photo updated successfully.
+              </section>
+            ) : null}
+
             <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-yellow-50">Create volume / issue</h2>
 
