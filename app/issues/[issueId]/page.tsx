@@ -8,6 +8,36 @@ type IssueDetailPageProps = {
   params: Promise<{ issueId: string }>;
 };
 
+function resolveFeaturedImage(value: string | null | undefined) {
+  const trimmed = String(value ?? "").trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.startsWith("/")) {
+    return {
+      src: trimmed,
+      external: false,
+    };
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+
+    return {
+      src: parsed.toString(),
+      external: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default async function IssueDetailPage({ params }: IssueDetailPageProps) {
   const { issueId } = await params;
 
@@ -48,18 +78,30 @@ export default async function IssueDetailPage({ params }: IssueDetailPageProps) 
     notFound();
   }
 
+  const featuredImage = resolveFeaturedImage(issue.featuredImageUrl);
+
   return (
     <main className="min-h-screen bg-red-950 px-6 py-8 text-yellow-100">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
         <header className="rounded-2xl border border-yellow-500/50 bg-red-900 px-5 py-4 shadow-sm">
-          {issue.featuredImageUrl ? (
-            <Image
-              src={issue.featuredImageUrl}
-              alt={`Featured photo for ${issue.journal.name} volume ${issue.volume} issue ${issue.issueNumber}`}
-              width={1600}
-              height={900}
-              className="mb-4 h-64 w-full rounded-xl border border-yellow-500/30 object-cover"
-            />
+          {featuredImage ? (
+            featuredImage.external ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={featuredImage.src}
+                alt={`Featured photo for ${issue.journal.name} volume ${issue.volume} issue ${issue.issueNumber}`}
+                loading="lazy"
+                className="mb-4 h-64 w-full rounded-xl border border-yellow-500/30 object-cover"
+              />
+            ) : (
+              <Image
+                src={featuredImage.src}
+                alt={`Featured photo for ${issue.journal.name} volume ${issue.volume} issue ${issue.issueNumber}`}
+                width={1600}
+                height={900}
+                className="mb-4 h-64 w-full rounded-xl border border-yellow-500/30 object-cover"
+              />
+            )
           ) : null}
 
           <div className="flex flex-wrap items-start justify-between gap-4">

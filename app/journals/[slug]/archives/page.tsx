@@ -9,6 +9,36 @@ type JournalArchivesPageProps = {
   params: Promise<{ slug: string }>;
 };
 
+function resolveFeaturedImage(value: string | null | undefined) {
+  const trimmed = String(value ?? "").trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.startsWith("/")) {
+    return {
+      src: trimmed,
+      external: false,
+    };
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+
+    return {
+      src: parsed.toString(),
+      external: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default async function JournalArchivesPage({ params }: JournalArchivesPageProps) {
   const { slug } = await params;
 
@@ -67,15 +97,35 @@ export default async function JournalArchivesPage({ params }: JournalArchivesPag
             <div className="mt-4 space-y-4">
               {journal.issues.map((issue) => (
                 <article key={issue.id} className="rounded-xl border border-yellow-500/30 p-4">
-                  {issue.featuredImageUrl ? (
-                    <Image
-                      src={issue.featuredImageUrl}
-                      alt={`Featured photo for volume ${issue.volume} issue ${issue.issueNumber}`}
-                      width={1400}
-                      height={700}
-                      className="mb-4 h-48 w-full rounded-lg border border-yellow-500/30 object-cover"
-                    />
-                  ) : null}
+                  {(() => {
+                    const featuredImage = resolveFeaturedImage(issue.featuredImageUrl);
+
+                    if (!featuredImage) {
+                      return null;
+                    }
+
+                    if (featuredImage.external) {
+                      return (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={featuredImage.src}
+                          alt={`Featured photo for volume ${issue.volume} issue ${issue.issueNumber}`}
+                          loading="lazy"
+                          className="mb-4 h-48 w-full rounded-lg border border-yellow-500/30 object-cover"
+                        />
+                      );
+                    }
+
+                    return (
+                      <Image
+                        src={featuredImage.src}
+                        alt={`Featured photo for volume ${issue.volume} issue ${issue.issueNumber}`}
+                        width={1400}
+                        height={700}
+                        className="mb-4 h-48 w-full rounded-lg border border-yellow-500/30 object-cover"
+                      />
+                    );
+                  })()}
 
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>

@@ -3,6 +3,36 @@ import Link from "next/link";
 
 import { prisma } from "@/lib/prisma";
 
+function resolveFeaturedImage(value: string | null | undefined) {
+  const trimmed = String(value ?? "").trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.startsWith("/")) {
+    return {
+      src: trimmed,
+      external: false,
+    };
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+
+    return {
+      src: parsed.toString(),
+      external: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default async function IssuesCatalogPage() {
   const issues = await prisma.issue.findMany({
     where: {
@@ -78,15 +108,35 @@ export default async function IssuesCatalogPage() {
           <section className="space-y-4">
             {issues.map((issue) => (
               <article key={issue.id} className="rounded-2xl border border-yellow-500/40 bg-red-900/70 p-6 shadow-sm">
-                {issue.featuredImageUrl ? (
-                  <Image
-                    src={issue.featuredImageUrl}
-                    alt={`Featured photo for ${issue.journal.name} volume ${issue.volume} issue ${issue.issueNumber}`}
-                    width={1600}
-                    height={700}
-                    className="mb-4 h-52 w-full rounded-xl border border-yellow-500/30 object-cover"
-                  />
-                ) : null}
+                {(() => {
+                  const featuredImage = resolveFeaturedImage(issue.featuredImageUrl);
+
+                  if (!featuredImage) {
+                    return null;
+                  }
+
+                  if (featuredImage.external) {
+                    return (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={featuredImage.src}
+                        alt={`Featured photo for ${issue.journal.name} volume ${issue.volume} issue ${issue.issueNumber}`}
+                        loading="lazy"
+                        className="mb-4 h-52 w-full rounded-xl border border-yellow-500/30 object-cover"
+                      />
+                    );
+                  }
+
+                  return (
+                    <Image
+                      src={featuredImage.src}
+                      alt={`Featured photo for ${issue.journal.name} volume ${issue.volume} issue ${issue.issueNumber}`}
+                      width={1600}
+                      height={700}
+                      className="mb-4 h-52 w-full rounded-xl border border-yellow-500/30 object-cover"
+                    />
+                  );
+                })()}
 
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>

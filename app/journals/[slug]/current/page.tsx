@@ -9,6 +9,36 @@ type JournalCurrentPageProps = {
   params: Promise<{ slug: string }>;
 };
 
+function resolveFeaturedImage(value: string | null | undefined) {
+  const trimmed = String(value ?? "").trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.startsWith("/")) {
+    return {
+      src: trimmed,
+      external: false,
+    };
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+
+    return {
+      src: parsed.toString(),
+      external: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default async function JournalCurrentPage({ params }: JournalCurrentPageProps) {
   const { slug } = await params;
 
@@ -48,6 +78,7 @@ export default async function JournalCurrentPage({ params }: JournalCurrentPageP
   }
 
   const currentIssue = journal.issues[0];
+  const currentIssueFeaturedImage = resolveFeaturedImage(currentIssue?.featuredImageUrl);
 
   return (
     <main className="min-h-screen bg-red-950 px-6 py-8 text-yellow-100">
@@ -69,14 +100,24 @@ export default async function JournalCurrentPage({ params }: JournalCurrentPageP
           ) : (
             <div className="space-y-4">
               <div className="rounded-xl border border-yellow-500/30 p-4">
-                {currentIssue.featuredImageUrl ? (
-                  <Image
-                    src={currentIssue.featuredImageUrl}
-                    alt={`Featured photo for ${journal.name} volume ${currentIssue.volume} issue ${currentIssue.issueNumber}`}
-                    width={1400}
-                    height={750}
-                    className="mb-4 h-56 w-full rounded-lg border border-yellow-500/30 object-cover"
-                  />
+                {currentIssueFeaturedImage ? (
+                  currentIssueFeaturedImage.external ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={currentIssueFeaturedImage.src}
+                      alt={`Featured photo for ${journal.name} volume ${currentIssue.volume} issue ${currentIssue.issueNumber}`}
+                      loading="lazy"
+                      className="mb-4 h-56 w-full rounded-lg border border-yellow-500/30 object-cover"
+                    />
+                  ) : (
+                    <Image
+                      src={currentIssueFeaturedImage.src}
+                      alt={`Featured photo for ${journal.name} volume ${currentIssue.volume} issue ${currentIssue.issueNumber}`}
+                      width={1400}
+                      height={750}
+                      className="mb-4 h-56 w-full rounded-lg border border-yellow-500/30 object-cover"
+                    />
+                  )
                 ) : null}
 
                 <h2 className="text-lg font-semibold text-yellow-50">
