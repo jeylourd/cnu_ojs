@@ -9,6 +9,36 @@ type JournalDetailPageProps = {
   params: Promise<{ slug: string }>;
 };
 
+function resolveFeaturedImage(value: string | null | undefined) {
+  const trimmed = String(value ?? "").trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.startsWith("/")) {
+    return {
+      src: trimmed,
+      external: false,
+    };
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+
+    return {
+      src: parsed.toString(),
+      external: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default async function JournalDetailPage({ params }: JournalDetailPageProps) {
   const { slug } = await params;
 
@@ -47,6 +77,7 @@ export default async function JournalDetailPage({ params }: JournalDetailPagePro
   }
 
   const currentIssue = journal.issues[0];
+  const currentIssueFeaturedImage = resolveFeaturedImage(currentIssue?.featuredImageUrl);
 
   return (
     <main className="min-h-screen bg-red-950 px-6 py-8 text-yellow-100">
@@ -74,14 +105,24 @@ export default async function JournalDetailPage({ params }: JournalDetailPagePro
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
             <article className="rounded-xl border border-yellow-500/30 p-4">
               <p className="text-xs uppercase tracking-[0.12em] text-yellow-200/80">Current</p>
-              {currentIssue?.featuredImageUrl ? (
-                <Image
-                  src={currentIssue.featuredImageUrl}
-                  alt={`Featured photo for volume ${currentIssue.volume} issue ${currentIssue.issueNumber}`}
-                  width={640}
-                  height={280}
-                  className="mt-2 h-28 w-full rounded-lg border border-yellow-500/30 object-cover"
-                />
+              {currentIssueFeaturedImage && currentIssue ? (
+                currentIssueFeaturedImage.external ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={currentIssueFeaturedImage.src}
+                    alt={`Featured photo for volume ${currentIssue.volume} issue ${currentIssue.issueNumber}`}
+                    loading="lazy"
+                    className="mt-2 h-28 w-full rounded-lg border border-yellow-500/30 object-cover"
+                  />
+                ) : (
+                  <Image
+                    src={currentIssueFeaturedImage.src}
+                    alt={`Featured photo for volume ${currentIssue.volume} issue ${currentIssue.issueNumber}`}
+                    width={640}
+                    height={280}
+                    className="mt-2 h-28 w-full rounded-lg border border-yellow-500/30 object-cover"
+                  />
+                )
               ) : null}
               <p className="mt-2 text-sm text-yellow-100/85">
                 {currentIssue
