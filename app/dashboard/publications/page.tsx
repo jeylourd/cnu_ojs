@@ -13,6 +13,36 @@ import { prisma } from "@/lib/prisma";
 
 const publicationRoles = new Set(["ADMIN", "EDITOR"]);
 
+function resolveFeaturedImage(value: string | null | undefined) {
+  const trimmed = String(value ?? "").trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.startsWith("/")) {
+    return {
+      src: trimmed,
+      external: false,
+    };
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+
+    return {
+      src: parsed.toString(),
+      external: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function getIssueImageExtension(file: File) {
   const mimeType = file.type.toLowerCase();
 
@@ -625,6 +655,36 @@ export default async function PublicationManagementPage() {
             <div className="mt-4 space-y-4">
               {issues.map((issue) => (
                 <article key={issue.id} className="rounded-xl border border-yellow-500/30 p-4">
+                  {(() => {
+                    const featuredImage = resolveFeaturedImage(issue.featuredImageUrl);
+
+                    if (!featuredImage) {
+                      return <p className="mb-3 text-xs text-yellow-100/70">No featured photo set for this issue.</p>;
+                    }
+
+                    if (featuredImage.external) {
+                      return (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={featuredImage.src}
+                          alt={`Featured photo for ${issue.journal.name} volume ${issue.volume} issue ${issue.issueNumber}`}
+                          loading="lazy"
+                          className="mb-3 h-44 w-full rounded-lg border border-yellow-500/30 object-cover"
+                        />
+                      );
+                    }
+
+                    return (
+                      <Image
+                        src={featuredImage.src}
+                        alt={`Featured photo for ${issue.journal.name} volume ${issue.volume} issue ${issue.issueNumber}`}
+                        width={1200}
+                        height={650}
+                        className="mb-3 h-44 w-full rounded-lg border border-yellow-500/30 object-cover"
+                      />
+                    );
+                  })()}
+
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <h3 className="text-base font-semibold">
@@ -652,17 +712,6 @@ export default async function PublicationManagementPage() {
                   </div>
 
                   <div className="mt-4 rounded-lg border border-yellow-500/25 p-3">
-                    {issue.featuredImageUrl ? (
-                      <Image
-                        src={issue.featuredImageUrl}
-                        alt={`Featured photo for ${issue.journal.name} volume ${issue.volume} issue ${issue.issueNumber}`}
-                        width={1200}
-                        height={650}
-                        className="mb-3 h-44 w-full rounded-lg border border-yellow-500/30 object-cover"
-                      />
-                    ) : (
-                      <p className="mb-3 text-xs text-yellow-100/70">No featured photo set for this issue.</p>
-                    )}
 
                     <form action={updateIssueFeaturedPhoto} encType="multipart/form-data" className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
                       <input type="hidden" name="issueId" value={issue.id} />
