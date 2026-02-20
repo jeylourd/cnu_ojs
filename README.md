@@ -127,7 +127,7 @@ Notes:
 After first deploy, run Prisma schema sync once against production DB:
 
 ```bash
-npx prisma db push
+npx prisma migrate deploy
 ```
 
 Optional seed in production:
@@ -135,6 +135,15 @@ Optional seed in production:
 ```bash
 npm run db:seed
 ```
+
+## Deploy Checklist (Schema Changes)
+
+When deploying any Prisma model/column change:
+
+1. Ensure a new migration folder exists in `prisma/migrations/...`.
+2. Commit both updated `prisma/schema.prisma` and the migration SQL file.
+3. Verify production build runs migrations before build (`prisma migrate deploy && next build`).
+4. Redeploy and confirm no `P2022` missing-column errors in logs.
 
 ## Prisma Commands
 
