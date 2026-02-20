@@ -1,4 +1,7 @@
 import { revalidatePath } from "next/cache";
+import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -9,28 +12,61 @@ import { prisma } from "@/lib/prisma";
 
 const publicationRoles = new Set(["ADMIN", "EDITOR"]);
 
-function normalizeIssueImageUrl(value: string) {
-  const trimmed = value.trim();
+function getIssueImageExtension(file: File) {
+  const mimeType = file.type.toLowerCase();
 
-  if (!trimmed) {
+  if (mimeType === "image/jpeg") {
+    return ".jpg";
+  }
+
+  if (mimeType === "image/png") {
+    return ".png";
+  }
+
+  if (mimeType === "image/webp") {
+    return ".webp";
+  }
+
+  const extension = path.extname(file.name || "").toLowerCase();
+
+  if (extension === ".jpg" || extension === ".jpeg") {
+    return ".jpg";
+  }
+
+  if (extension === ".png") {
+    return ".png";
+  }
+
+  if (extension === ".webp") {
+    return ".webp";
+  }
+
+  return null;
+}
+
+async function saveIssueFeaturedImage(file: File) {
+  const maxBytes = 5 * 1024 * 1024;
+
+  if (file.size <= 0 || file.size > maxBytes) {
     return null;
   }
 
-  if (trimmed.startsWith("/")) {
-    return trimmed;
-  }
+  const extension = getIssueImageExtension(file);
 
-  try {
-    const parsed = new URL(trimmed);
-
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return null;
-    }
-
-    return parsed.toString();
-  } catch {
+  if (!extension) {
     return null;
   }
+
+  const uploadsDir = path.join(process.cwd(), "public", "uploads", "issues");
+  await mkdir(uploadsDir, { recursive: true });
+
+  const fileName = `${Date.now()}-${randomUUID()}${extension}`;
+  const filePath = path.join(uploadsDir, fileName);
+  const fileBuffer = Buffer.from(await file.arrayBuffer());
+
+  await writeFile(filePath, fileBuffer);
+
+  return `/uploads/issues/${fileName}`;
 }
 
 export default async function PublicationManagementPage() {
@@ -144,7 +180,7 @@ export default async function PublicationManagementPage() {
     const issueNumber = Number.parseInt(String(formData.get("issueNumber") ?? "").trim(), 10);
     const year = Number.parseInt(String(formData.get("year") ?? "").trim(), 10);
     const title = String(formData.get("title") ?? "").trim();
-    const featuredImageUrl = normalizeIssueImageUrl(String(formData.get("featuredImageUrl") ?? ""));
+    const featuredPhotoFile = formData.get("featuredPhotoFile");
 
     if (!journalId || Number.isNaN(volume) || Number.isNaN(issueNumber) || Number.isNaN(year)) {
       return;
@@ -161,6 +197,12 @@ export default async function PublicationManagementPage() {
 
     if (currentSession.user.role === "EDITOR" && journal.editorId !== currentSession.user.id) {
       redirect("/forbidden");
+    }
+
+    let featuredImageUrl: string | null = null;
+
+    if (featuredPhotoFile instanceof File && featuredPhotoFile.size > 0) {
+      featuredImageUrl = await saveIssueFeaturedImage(featuredPhotoFile);
     }
 
     try {
@@ -195,14 +237,10 @@ export default async function PublicationManagementPage() {
     }
 
     const issueId = String(formData.get("issueId") ?? "").trim();
-    const featuredImageUrlInput = String(formData.get("featuredImageUrl") ?? "");
-    const featuredImageUrl = normalizeIssueImageUrl(featuredImageUrlInput);
+    const featuredPhotoFile = formData.get("featuredPhotoFile");
+    const clearPhoto = String(formData.get("clearPhoto") ?? "") === "1";
 
     if (!issueId) {
-      return;
-    }
-
-    if (featuredImageUrlInput.trim() && !featuredImageUrl) {
       return;
     }
 
@@ -224,6 +262,22 @@ export default async function PublicationManagementPage() {
 
     if (currentSession.user.role === "EDITOR" && issue.journal.editorId !== currentSession.user.id) {
       redirect("/forbidden");
+    }
+
+    let featuredImageUrl: string | null | undefined;
+
+    if (clearPhoto) {
+      featuredImageUrl = null;
+    } else if (featuredPhotoFile instanceof File && featuredPhotoFile.size > 0) {
+      featuredImageUrl = await saveIssueFeaturedImage(featuredPhotoFile);
+
+      if (!featuredImageUrl) {
+        return;
+      }
+    }
+
+    if (featuredImageUrl === undefined) {
+      return;
     }
 
     await prisma.issue.update({
@@ -409,7 +463,7 @@ export default async function PublicationManagementPage() {
           {manageableJournals.length === 0 ? (
             <p className="mt-4 text-sm text-yellow-100/85">No manageable journals found for this account.</p>
           ) : (
-            <form action={createIssue} className="mt-4 grid gap-4 sm:grid-cols-4">
+            <form action={createIssue} encType="multipart/form-data" className="mt-4 grid gap-4 sm:grid-cols-4">
               <label className="block text-sm font-medium text-yellow-100 sm:col-span-2">
                 Journal
                 <select
@@ -470,13 +524,14 @@ export default async function PublicationManagementPage() {
               </label>
 
               <label className="block text-sm font-medium text-yellow-100 sm:col-span-4">
-                Featured photo URL (optional)
+                Featured photo (optional)
                 <input
-                  type="text"
-                  name="featuredImageUrl"
+                  type="file"
+                  name="featuredPhotoFile"
+                  accept="image/png,image/jpeg,image/webp"
                   className="mt-1 w-full rounded-lg border border-yellow-500/40 bg-red-950 px-3 py-2 text-sm text-yellow-100 outline-none ring-yellow-400 focus:ring-2"
-                  placeholder="https://example.com/issue-cover.jpg or /uploads/issues/cover.jpg"
                 />
+                <span className="mt-1 block text-xs text-yellow-200/80">Accepted: JPG, PNG, WEBP · Max size: 5MB</span>
               </label>
 
               <div className="sm:col-span-4">
@@ -592,14 +647,13 @@ export default async function PublicationManagementPage() {
                       <p className="mb-3 text-xs text-yellow-100/70">No featured photo set for this issue.</p>
                     )}
 
-                    <form action={updateIssueFeaturedPhoto} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                    <form action={updateIssueFeaturedPhoto} encType="multipart/form-data" className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
                       <input type="hidden" name="issueId" value={issue.id} />
                       <input
-                        type="text"
-                        name="featuredImageUrl"
-                        defaultValue={issue.featuredImageUrl ?? ""}
+                        type="file"
+                        name="featuredPhotoFile"
+                        accept="image/png,image/jpeg,image/webp"
                         className="w-full rounded-lg border border-yellow-500/40 bg-red-950 px-3 py-2 text-sm text-yellow-100 outline-none ring-yellow-400 focus:ring-2"
-                        placeholder="https://example.com/issue-cover.jpg or /uploads/issues/cover.jpg"
                       />
                       <button
                         data-preloader="on"
@@ -608,7 +662,17 @@ export default async function PublicationManagementPage() {
                       >
                         Save photo
                       </button>
+                      <button
+                        data-preloader="on"
+                        type="submit"
+                        name="clearPhoto"
+                        value="1"
+                        className="rounded-lg border border-yellow-400/40 px-4 py-2 text-sm font-medium text-yellow-100/85 transition hover:bg-red-800"
+                      >
+                        Remove photo
+                      </button>
                     </form>
+                    <p className="mt-2 text-xs text-yellow-200/80">Accepted: JPG, PNG, WEBP · Max size: 5MB</p>
                   </div>
 
                   <div className="mt-4">
