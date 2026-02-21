@@ -129,6 +129,14 @@ async function saveIssueFeaturedImage(file: File): Promise<SaveIssueFeaturedImag
         url: blob.url,
       };
     } catch {
+      try {
+        // Log detailed error to server logs for easier debugging in Vercel
+        // eslint-disable-next-line no-console
+        console.error("saveIssueFeaturedImage: @vercel/blob.put failed for", `issues/${fileName}`);
+      } catch (_) {
+        // ignore logging failures
+      }
+
       return {
         ok: false,
         code: "UPLOAD_FAILED",
@@ -157,6 +165,14 @@ async function saveIssueFeaturedImage(file: File): Promise<SaveIssueFeaturedImag
       url: `/uploads/issues/${fileName}`,
     };
   } catch {
+    try {
+      // Log detailed error to server logs for easier debugging
+      // eslint-disable-next-line no-console
+      console.error("saveIssueFeaturedImage: failed to write file to disk", fileName);
+    } catch (_) {
+      // ignore logging failures
+    }
+
     return {
       ok: false,
       code: "UPLOAD_FAILED",
@@ -305,13 +321,22 @@ export default async function PublicationManagementPage({ searchParams }: Public
     let featuredImageUrl: string | null = null;
 
     if (featuredPhotoFile instanceof File && featuredPhotoFile.size > 0) {
-      const uploadResult = await saveIssueFeaturedImage(featuredPhotoFile);
+      try {
+        const uploadResult = await saveIssueFeaturedImage(featuredPhotoFile);
 
-      if (!uploadResult.ok) {
-        redirect(`/dashboard/publications?uploadError=${uploadResult.code}`);
+        if (!uploadResult.ok) {
+          redirect(`/dashboard/publications?uploadError=${uploadResult.code}`);
+        }
+
+        featuredImageUrl = uploadResult.url;
+      } catch (err) {
+        try {
+          // eslint-disable-next-line no-console
+          console.error("createIssue: unexpected error saving featured photo", err);
+        } catch (_) {}
+
+        redirect(`/dashboard/publications?uploadError=UPLOAD_FAILED`);
       }
-
-      featuredImageUrl = uploadResult.url;
     }
 
     try {
@@ -378,13 +403,22 @@ export default async function PublicationManagementPage({ searchParams }: Public
     if (clearPhoto) {
       featuredImageUrl = null;
     } else if (featuredPhotoFile instanceof File && featuredPhotoFile.size > 0) {
-      const uploadResult = await saveIssueFeaturedImage(featuredPhotoFile);
+        try {
+          const uploadResult = await saveIssueFeaturedImage(featuredPhotoFile);
 
-      if (!uploadResult.ok) {
-        redirect(`/dashboard/publications?uploadError=${uploadResult.code}`);
-      }
+          if (!uploadResult.ok) {
+            redirect(`/dashboard/publications?uploadError=${uploadResult.code}`);
+          }
 
-      featuredImageUrl = uploadResult.url;
+          featuredImageUrl = uploadResult.url;
+        } catch (err) {
+          try {
+            // eslint-disable-next-line no-console
+            console.error("updateIssueFeaturedPhoto: unexpected error saving featured photo", err);
+          } catch (_) {}
+
+          redirect(`/dashboard/publications?uploadError=UPLOAD_FAILED`);
+        }
     }
 
     if (featuredImageUrl === undefined) {
