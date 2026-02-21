@@ -111,25 +111,38 @@ async function saveIssueFeaturedImage(file: File): Promise<SaveIssueFeaturedImag
       ok: false,
       code: "UNSUPPORTED_TYPE",
     };
-  }
+    const providedImageUrl = String(formData.get("featuredImageUrl") ?? "").trim();
 
-  const fileName = `${Date.now()}-${randomUUID()}${extension}`;
-  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
-
-  if (blobToken) {
-    try {
-      const blob = await put(`issues/${fileName}`, file, {
-        access: "public",
-        addRandomSuffix: false,
-        token: blobToken,
-      });
-
-      return {
-        ok: true,
-        url: blob.url,
-      };
-    } catch {
+    if (providedImageUrl) {
+      // accept external URL directly (must be http/https)
       try {
+        const parsed = new URL(providedImageUrl);
+        if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+          featuredImageUrl = parsed.toString();
+        }
+      } catch {
+        // ignore invalid URL, fallthrough to file upload if present
+      }
+    }
+
+    if (!featuredImageUrl && featuredPhotoFile instanceof File && featuredPhotoFile.size > 0) {
+      try {
+        const uploadResult = await saveIssueFeaturedImage(featuredPhotoFile);
+
+        if (!uploadResult.ok) {
+          redirect(`/dashboard/publications?uploadError=${uploadResult.code}`);
+        }
+
+        featuredImageUrl = uploadResult.url;
+      } catch (err) {
+        try {
+          // eslint-disable-next-line no-console
+          console.error("createIssue: unexpected error saving featured photo", err);
+        } catch (_) {}
+
+        redirect(`/dashboard/publications?uploadError=UPLOAD_FAILED`);
+      }
+    }
         // Log detailed error to server logs for easier debugging in Vercel
         // eslint-disable-next-line no-console
         console.error("saveIssueFeaturedImage: @vercel/blob.put failed for", `issues/${fileName}`);
@@ -399,26 +412,45 @@ export default async function PublicationManagementPage({ searchParams }: Public
     }
 
     let featuredImageUrl: string | null | undefined;
-
     if (clearPhoto) {
       featuredImageUrl = null;
-    } else if (featuredPhotoFile instanceof File && featuredPhotoFile.size > 0) {
+    } else {
+      const providedImageUrl = String(formData.get("featuredImageUrl") ?? "").trim();
+
+      if (providedImageUrl) {
         try {
-          const uploadResult = await saveIssueFeaturedImage(featuredPhotoFile);
-
-          if (!uploadResult.ok) {
-            redirect(`/dashboard/publications?uploadError=${uploadResult.code}`);
+          const parsed = new URL(providedImageUrl);
+          if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+            featuredImageUrl = parsed.toString();
           }
-
-          featuredImageUrl = uploadResult.url;
-        } catch (err) {
-          try {
-            // eslint-disable-next-line no-console
-            console.error("updateIssueFeaturedPhoto: unexpected error saving featured photo", err);
-          } catch (_) {}
-
-          redirect(`/dashboard/publications?uploadError=UPLOAD_FAILED`);
+        } catch {
+          // invalid URL -> try file upload if provided
         }
+      }
+
+      if (featuredImageUrl === undefined || featuredImageUrl === null) {
+        if (featuredPhotoFile instanceof File && featuredPhotoFile.size > 0) {
+          try {
+            const uploadResult = await saveIssueFeaturedImage(featuredPhotoFile);
+
+            if (!uploadResult.ok) {
+              redirect(`/dashboard/publications?uploadError=${uploadResult.code}`);
+            }
+
+            featuredImageUrl = uploadResult.url;
+          } catch (err) {
+            try {
+              // eslint-disable-next-line no-console
+              console.error("updateIssueFeaturedPhoto: unexpected error saving featured photo", err);
+            } catch (_) {}
+
+            redirect(`/dashboard/publications?uploadError=UPLOAD_FAILED`);
+          }
+        } else {
+          // no change
+          featuredImageUrl = undefined;
+        }
+      }
     }
 
     if (featuredImageUrl === undefined) {
@@ -688,6 +720,13 @@ export default async function PublicationManagementPage({ searchParams }: Public
                   type="file"
                   name="featuredPhotoFile"
                   accept="image/png,image/jpeg,image/webp"
+                  className="mt-1 w-full rounded-lg border border-yellow-500/40 bg-red-950 px-3 py-2 text-sm text-yellow-100 outline-none ring-yellow-400 focus:ring-2"
+                />
+                <span className="mt-2 block text-xs text-yellow-200/80">Or paste an external image URL below</span>
+                <input
+                  type="url"
+                  name="featuredImageUrl"
+                  placeholder="https://example.com/image.jpg"
                   className="mt-1 w-full rounded-lg border border-yellow-500/40 bg-red-950 px-3 py-2 text-sm text-yellow-100 outline-none ring-yellow-400 focus:ring-2"
                 />
                 <span className="mt-1 block text-xs text-yellow-200/80">Accepted: JPG, PNG, WEBP · Max size: 5MB</span>
