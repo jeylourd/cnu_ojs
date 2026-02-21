@@ -98,70 +98,39 @@ async function saveIssueFeaturedImage(file: File): Promise<SaveIssueFeaturedImag
   const maxBytes = 5 * 1024 * 1024;
 
   if (file.size <= 0 || file.size > maxBytes) {
-    return {
-      ok: false,
-      code: "FILE_TOO_LARGE",
-    };
+    return { ok: false, code: "FILE_TOO_LARGE" };
   }
 
   const extension = getIssueImageExtension(file);
 
   if (!extension) {
-    return {
-      ok: false,
-      code: "UNSUPPORTED_TYPE",
-    };
-    const providedImageUrl = String(formData.get("featuredImageUrl") ?? "").trim();
+    return { ok: false, code: "UNSUPPORTED_TYPE" };
+  }
 
-    if (providedImageUrl) {
-      // accept external URL directly (must be http/https)
+  const fileName = `${Date.now()}-${randomUUID()}${extension}`;
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+
+  if (blobToken) {
+    try {
+      const blob = await put(`issues/${fileName}`, file, {
+        access: "public",
+        addRandomSuffix: false,
+        token: blobToken,
+      });
+
+      return { ok: true, url: blob.url };
+    } catch (err) {
       try {
-        const parsed = new URL(providedImageUrl);
-        if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-          featuredImageUrl = parsed.toString();
-        }
-      } catch {
-        // ignore invalid URL, fallthrough to file upload if present
-      }
-    }
-
-    if (!featuredImageUrl && featuredPhotoFile instanceof File && featuredPhotoFile.size > 0) {
-      try {
-        const uploadResult = await saveIssueFeaturedImage(featuredPhotoFile);
-
-        if (!uploadResult.ok) {
-          redirect(`/dashboard/publications?uploadError=${uploadResult.code}`);
-        }
-
-        featuredImageUrl = uploadResult.url;
-      } catch (err) {
-        try {
-          // eslint-disable-next-line no-console
-          console.error("createIssue: unexpected error saving featured photo", err);
-        } catch (_) {}
-
-        redirect(`/dashboard/publications?uploadError=UPLOAD_FAILED`);
-      }
-    }
-        // Log detailed error to server logs for easier debugging in Vercel
         // eslint-disable-next-line no-console
-        console.error("saveIssueFeaturedImage: @vercel/blob.put failed for", `issues/${fileName}`);
-      } catch (_) {
-        // ignore logging failures
-      }
+        console.error("saveIssueFeaturedImage: @vercel/blob.put failed for", `issues/${fileName}`, err);
+      } catch (_) {}
 
-      return {
-        ok: false,
-        code: "UPLOAD_FAILED",
-      };
+      return { ok: false, code: "UPLOAD_FAILED" };
     }
   }
 
   if (process.env.VERCEL === "1" || process.env.VERCEL_ENV) {
-    return {
-      ok: false,
-      code: "STORAGE_NOT_CONFIGURED",
-    };
+    return { ok: false, code: "STORAGE_NOT_CONFIGURED" };
   }
 
   try {
@@ -173,23 +142,14 @@ async function saveIssueFeaturedImage(file: File): Promise<SaveIssueFeaturedImag
 
     await writeFile(filePath, fileBuffer);
 
-    return {
-      ok: true,
-      url: `/uploads/issues/${fileName}`,
-    };
-  } catch {
+    return { ok: true, url: `/uploads/issues/${fileName}` };
+  } catch (err) {
     try {
-      // Log detailed error to server logs for easier debugging
       // eslint-disable-next-line no-console
-      console.error("saveIssueFeaturedImage: failed to write file to disk", fileName);
-    } catch (_) {
-      // ignore logging failures
-    }
+      console.error("saveIssueFeaturedImage: failed to write file to disk", fileName, err);
+    } catch (_) {}
 
-    return {
-      ok: false,
-      code: "UPLOAD_FAILED",
-    };
+    return { ok: false, code: "UPLOAD_FAILED" };
   }
 }
 
