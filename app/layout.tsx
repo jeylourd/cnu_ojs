@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import dynamic from "next/dynamic";
-
-const GlobalPreloader = dynamic(() => import("@/components/ui/GlobalPreloader"), { ssr: false });
+import { GlobalPreloader } from "@/components/ui/GlobalPreloader";
 import "./globals.css";
 
 const geistSans = Geist({
