@@ -245,14 +245,15 @@ export default async function PublicationManagementPage({ searchParams }: Public
     },
   });
 
-  const revalidatePublicPublicationPaths = (journalSlug: string, issueId: string) => {
+  async function revalidatePublicPublicationPaths(journalSlug: string, issueId: string) {
+    "use server";
     revalidatePath("/issues");
     revalidatePath(`/issues/${issueId}`);
     revalidatePath("/journals");
     revalidatePath(`/journals/${journalSlug}`);
     revalidatePath(`/journals/${journalSlug}/current`);
     revalidatePath(`/journals/${journalSlug}/archives`);
-  };
+  }
 
   async function createIssue(formData: FormData) {
     "use server";
@@ -613,8 +614,8 @@ export default async function PublicationManagementPage({ searchParams }: Public
 
           {manageableJournals.length === 0 ? (
             <p className="mt-4 text-sm text-yellow-100/85">No manageable journals found for this account.</p>
-          ) : (
-            <form action={createIssue} encType="multipart/form-data" className="mt-4 grid gap-4 sm:grid-cols-4">
+            ) : (
+            <form action={createIssue} className="mt-4 grid gap-4 sm:grid-cols-4">
               <label className="block text-sm font-medium text-yellow-100 sm:col-span-2">
                 Journal
                 <select
@@ -824,7 +825,7 @@ export default async function PublicationManagementPage({ searchParams }: Public
 
                   <div className="mt-4 rounded-lg border border-yellow-500/25 p-3">
 
-                    <form action={updateIssueFeaturedPhoto} encType="multipart/form-data" className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+                    <form action={updateIssueFeaturedPhoto} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
                       <input type="hidden" name="issueId" value={issue.id} />
                       <input
                         type="file"
