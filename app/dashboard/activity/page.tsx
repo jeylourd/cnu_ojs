@@ -240,7 +240,7 @@ export default async function PlatformActivityPage({ searchParams }: PlatformAct
         </header>
 
         <section className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
-          <DashboardSidebar role={session.user.role} />
+          <DashboardSidebar role={session.user.role} currentPath="/dashboard/activity" />
 
           <div className="space-y-8">
             <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">

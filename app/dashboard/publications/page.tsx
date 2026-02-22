@@ -570,6 +570,63 @@ export default async function PublicationManagementPage({ searchParams }: Public
     revalidatePublicPublicationPaths(issue.journal.slug, issue.id);
   }
 
+  async function assignDOI(formData: FormData) {
+    "use server";
+
+    const currentSession = await auth();
+
+    if (!currentSession?.user) {
+      redirect("/login");
+    }
+
+    if (!publicationRoles.has(currentSession.user.role)) {
+      redirect("/forbidden");
+    }
+
+    const submissionId = String(formData.get("submissionId") ?? "").trim();
+    const doi = String(formData.get("doi") ?? "").trim();
+
+    if (!submissionId || !doi) {
+      return;
+    }
+
+    await prisma.submission.update({
+      where: { id: submissionId },
+      data: { doi },
+    });
+
+    revalidatePath("/dashboard/publications");
+    revalidatePath("/dashboard/submissions");
+  }
+
+  async function assignIssueDOI(formData: FormData) {
+    "use server";
+
+    const currentSession = await auth();
+
+    if (!currentSession?.user) {
+      redirect("/login");
+    }
+
+    if (!publicationRoles.has(currentSession.user.role)) {
+      redirect("/forbidden");
+    }
+
+    const issueId = String(formData.get("issueId") ?? "").trim();
+    const doi = String(formData.get("doi") ?? "").trim();
+
+    if (!issueId || !doi) {
+      return;
+    }
+
+    await prisma.issue.update({
+      where: { id: issueId },
+      data: { doi },
+    });
+
+    revalidatePath("/dashboard/publications");
+  }
+
   return (
     <main className="min-h-screen bg-red-950 px-6 py-10 text-yellow-100 lg:px-8">
       <div className="flex w-full flex-col gap-8">
@@ -594,7 +651,7 @@ export default async function PublicationManagementPage({ searchParams }: Public
         </header>
 
         <section className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
-          <DashboardSidebar role={session.user.role} />
+          <DashboardSidebar role={session.user.role} currentPath="/dashboard/publications" />
 
           <div className="space-y-8">
             {params?.uploadError && params.uploadError in uploadErrorMessages ? (

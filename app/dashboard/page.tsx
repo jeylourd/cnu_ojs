@@ -173,7 +173,7 @@ export default async function DashboardPage() {
         </header>
 
         <section className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
-          <DashboardSidebar role={session.user.role} />
+          <DashboardSidebar role={session.user.role} currentPath="/dashboard" />
 
           <div className="space-y-6">
             <article className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">

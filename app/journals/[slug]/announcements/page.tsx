@@ -83,8 +83,8 @@ export default async function JournalAnnouncementsPage({ params }: JournalAnnoun
             <ul className="mt-4 space-y-3">
               {journal.announcements.map((announcement) => (
                 <li key={announcement.id} className="rounded-xl border border-yellow-500/30 p-4">
-                  <p className="text-sm font-semibold text-yellow-50">{announcement.title}</p>
-                  <p className="mt-1 text-sm text-yellow-100/85">
+                  <p className="text-sm font-semibold text-yellow-50 break-words">{announcement.title}</p>
+                  <p className="mt-1 text-sm text-yellow-100/85 whitespace-pre-line break-words">
                     {announcement.content}
                   </p>
                   <p className="mt-1 text-xs text-yellow-100/70">

@@ -157,7 +157,7 @@ export default async function UserRoleManagementPage({ searchParams }: UserRoleM
         </header>
 
         <section className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
-          <DashboardSidebar role={session.user.role} />
+          <DashboardSidebar role={session.user.role} currentPath="/dashboard/users" />
 
           <div>
             <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">

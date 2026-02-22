@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { prisma } from "@/lib/prisma";
+import { createNotification } from "@/lib/notifications";
+import { sendReviewAssignmentEmail } from "@/lib/mailer";
 
 type ReviewRecommendationValue = "ACCEPT" | "MINOR_REVISION" | "MAJOR_REVISION" | "REJECT";
 
@@ -40,6 +42,35 @@ export default async function ReviewsManagementPage() {
       })
     : [];
 
+  const reviewRounds = canAssign
+    ? await prisma.reviewRound.findMany({
+        include: {
+          submission: {
+            select: {
+              id: true,
+              title: true,
+              journal: { select: { name: true } },
+            },
+          },
+          _count: {
+            select: {
+              reviews: true,
+            },
+          },
+          reviews: {
+            select: {
+              id: true,
+              submittedAt: true,
+            },
+          },
+        },
+        orderBy: [
+          { submission: { createdAt: "desc" } },
+          { roundNumber: "desc" },
+        ],
+      })
+    : [];
+
   const reviews = await prisma.review.findMany({
     where:
       role === "REVIEWER"
@@ -58,6 +89,13 @@ export default async function ReviewsManagementPage() {
         },
       },
       reviewer: { select: { id: true, name: true, email: true } },
+      reviewRound: {
+        select: {
+          id: true,
+          roundNumber: true,
+          status: true,
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -77,16 +115,58 @@ export default async function ReviewsManagementPage() {
 
     const submissionId = String(formData.get("submissionId") ?? "").trim();
     const reviewerId = String(formData.get("reviewerId") ?? "").trim();
+    const roundInputRaw = String(formData.get("roundNumber") ?? "").trim();
 
     if (!submissionId || !reviewerId) {
       return;
     }
+
+    const parsedRound = Number.parseInt(roundInputRaw, 10);
+    const explicitRoundNumber = Number.isNaN(parsedRound) ? null : Math.max(1, parsedRound);
+
+    const openRound = await prisma.reviewRound.findFirst({
+      where: { submissionId, status: "OPEN" },
+      orderBy: { roundNumber: "desc" },
+    });
+
+    const targetRound = explicitRoundNumber
+      ? await prisma.reviewRound.findFirst({
+          where: { submissionId, roundNumber: explicitRoundNumber },
+        })
+      : openRound;
+
+    const latestRound = await prisma.reviewRound.findFirst({
+      where: { submissionId },
+      orderBy: { roundNumber: "desc" },
+      select: { roundNumber: true },
+    });
+
+    const roundNumberToCreate = explicitRoundNumber ?? (latestRound?.roundNumber ?? 0) + 1;
+    if (!targetRound && explicitRoundNumber && openRound) {
+      await prisma.reviewRound.updateMany({
+        where: { submissionId, status: "OPEN" },
+        data: { status: "CLOSED", closedAt: new Date() },
+      });
+    }
+
+    const reviewRound =
+      targetRound ??
+      (await prisma.reviewRound.create({
+        data: {
+          submissionId,
+          roundNumber: roundNumberToCreate,
+          status: "OPEN",
+          startedAt: new Date(),
+        },
+      }));
 
     try {
       await prisma.review.create({
         data: {
           submissionId,
           reviewerId,
+          reviewRoundId: reviewRound.id,
+          invitedAt: new Date(),
         },
       });
 
@@ -94,6 +174,43 @@ export default async function ReviewsManagementPage() {
         where: { id: submissionId },
         data: { status: "UNDER_REVIEW" },
       });
+
+      // Get submission and reviewer details for notification
+      const submission = await prisma.submission.findUnique({
+        where: { id: submissionId },
+        include: {
+          journal: true,
+        },
+      });
+
+      const reviewer = await prisma.user.findUnique({
+        where: { id: reviewerId },
+      });
+
+      if (submission && reviewer) {
+        // Create notification for the reviewer
+        await createNotification({
+          userId: reviewerId,
+          type: "REVIEW_ASSIGNED",
+          title: "New Review Assignment",
+          message: `You have been assigned to review "${submission.title}" for ${submission.journal.name}`,
+          link: "/dashboard/reviews",
+        });
+
+        // Send email notification
+        const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toLocaleDateString();
+        try {
+          await sendReviewAssignmentEmail(
+            reviewer.email,
+            reviewer.name,
+            submission.title,
+            submission.journal.name,
+            dueDate
+          );
+        } catch (error) {
+          console.error("[Review] Failed to send assignment email:", error);
+        }
+      }
     } catch {
       return;
     }
@@ -148,6 +265,181 @@ export default async function ReviewsManagementPage() {
       },
     });
 
+    // Get submission and journal details to notify the editor
+    const reviewWithSubmission = await prisma.review.findUnique({
+      where: { id: reviewId },
+      include: {
+        submission: {
+          include: {
+            journal: {
+              include: {
+                editor: true,
+              },
+            },
+          },
+        },
+        reviewer: true,
+      },
+    });
+
+    if (reviewWithSubmission?.submission.journal.editor) {
+      // Notify the journal editor that a review has been submitted
+      await createNotification({
+        userId: reviewWithSubmission.submission.journal.editorId,
+        type: "REVIEW_SUBMITTED",
+        title: "Review Completed",
+        message: `${currentSession.user.name} completed a review for "${reviewWithSubmission.submission.title}" with recommendation: ${recommendation}`,
+        link: "/dashboard/reviews",
+      });
+    }
+
+    revalidatePath("/dashboard/reviews");
+  }
+
+  async function closeRound(formData: FormData) {
+    "use server";
+
+    const currentSession = await auth();
+
+    if (!currentSession?.user) {
+      redirect("/login");
+    }
+
+    if (!canAssignRoles.has(currentSession.user.role)) {
+      redirect("/forbidden");
+    }
+
+    const roundId = String(formData.get("roundId") ?? "").trim();
+
+    if (!roundId) {
+      return;
+    }
+
+    await prisma.reviewRound.update({
+      where: { id: roundId },
+      data: {
+        status: "CLOSED",
+        closedAt: new Date(),
+      },
+    });
+
+    revalidatePath("/dashboard/reviews");
+  }
+
+  async function startNewRound(formData: FormData) {
+    "use server";
+
+    const currentSession = await auth();
+
+    if (!currentSession?.user) {
+      redirect("/login");
+    }
+
+    if (!canAssignRoles.has(currentSession.user.role)) {
+      redirect("/forbidden");
+    }
+
+    const submissionId = String(formData.get("submissionId") ?? "").trim();
+
+    if (!submissionId) {
+      return;
+    }
+
+    const latestRound = await prisma.reviewRound.findFirst({
+      where: { submissionId },
+      orderBy: { roundNumber: "desc" },
+      select: { roundNumber: true, status: true },
+    });
+
+    const nextRoundNumber = (latestRound?.roundNumber ?? 0) + 1;
+
+    await prisma.reviewRound.create({
+      data: {
+        submissionId,
+        roundNumber: nextRoundNumber,
+        status: "OPEN",
+        startedAt: new Date(),
+      },
+    });
+
+    revalidatePath("/dashboard/reviews");
+  }
+
+  async function acceptInvitation(formData: FormData) {
+    "use server";
+
+    const currentSession = await auth();
+
+    if (!currentSession?.user) {
+      redirect("/login");
+    }
+
+    if (currentSession.user.role !== "REVIEWER") {
+      redirect("/forbidden");
+    }
+
+    const reviewId = String(formData.get("reviewId") ?? "").trim();
+
+    if (!reviewId) {
+      return;
+    }
+
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+      select: { id: true, reviewerId: true },
+    });
+
+    if (!review || review.reviewerId !== currentSession.user.id) {
+      redirect("/forbidden");
+    }
+
+    await prisma.review.update({
+      where: { id: reviewId },
+      data: {
+        acceptedAt: new Date(),
+        declinedAt: null,
+      },
+    });
+
+    revalidatePath("/dashboard/reviews");
+  }
+
+  async function declineInvitation(formData: FormData) {
+    "use server";
+
+    const currentSession = await auth();
+
+    if (!currentSession?.user) {
+      redirect("/login");
+    }
+
+    if (currentSession.user.role !== "REVIEWER") {
+      redirect("/forbidden");
+    }
+
+    const reviewId = String(formData.get("reviewId") ?? "").trim();
+
+    if (!reviewId) {
+      return;
+    }
+
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+      select: { id: true, reviewerId: true },
+    });
+
+    if (!review || review.reviewerId !== currentSession.user.id) {
+      redirect("/forbidden");
+    }
+
+    await prisma.review.update({
+      where: { id: reviewId },
+      data: {
+        declinedAt: new Date(),
+        acceptedAt: null,
+      },
+    });
+
     revalidatePath("/dashboard/reviews");
   }
 
@@ -175,7 +467,7 @@ export default async function ReviewsManagementPage() {
         </header>
 
         <section className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
-          <DashboardSidebar role={session.user.role} />
+          <DashboardSidebar role={session.user.role} currentPath="/dashboard/reviews" />
 
           <div className="space-y-8">
             {canAssign ? (
@@ -218,6 +510,20 @@ export default async function ReviewsManagementPage() {
                   </select>
                 </label>
 
+                <label className="block text-sm font-medium text-yellow-100">
+                  Round (optional)
+                  <input
+                    type="number"
+                    min={1}
+                    name="roundNumber"
+                    className="mt-1 w-full rounded-lg border border-yellow-500/40 bg-red-950 px-3 py-2 text-sm text-yellow-100 outline-none ring-yellow-400 focus:ring-2"
+                    placeholder="Auto"
+                  />
+                  <span className="mt-1 block text-xs text-yellow-200/80">
+                    Leave blank to use the current open round or start a new one.
+                  </span>
+                </label>
+
                 <div className="sm:col-span-2">
                   <button
                     data-preloader="on"
@@ -229,6 +535,73 @@ export default async function ReviewsManagementPage() {
                 </div>
               </form>
             )}
+              </section>
+            ) : null}
+
+            {canAssign && reviewRounds.length > 0 ? (
+              <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
+                <h2 className="text-lg font-semibold text-yellow-50">Review rounds ({reviewRounds.length})</h2>
+
+                <div className="mt-4 space-y-4">
+                  {reviewRounds.map((round) => {
+                    const submittedCount = round.reviews.filter((r) => !!r.submittedAt).length;
+                    const totalCount = round._count.reviews;
+
+                    return (
+                      <article key={round.id} className="rounded-xl border border-yellow-500/30 p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div>
+                            <h3 className="text-base font-semibold">
+                              Round {round.roundNumber} · {round.submission.title}
+                            </h3>
+                            <p className="text-sm text-yellow-100/85">
+                              Journal: {round.submission.journal.name}
+                            </p>
+                            <p className="mt-1 text-xs text-yellow-200/80">
+                              Status: {round.status} · Reviews: {submittedCount}/{totalCount} submitted
+                            </p>
+                            {round.startedAt ? (
+                              <p className="mt-1 text-xs text-yellow-200/80">
+                                Started: {new Date(round.startedAt).toLocaleString()}
+                              </p>
+                            ) : null}
+                            {round.closedAt ? (
+                              <p className="mt-1 text-xs text-yellow-200/80">
+                                Closed: {new Date(round.closedAt).toLocaleString()}
+                              </p>
+                            ) : null}
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            {round.status === "OPEN" ? (
+                              <form action={closeRound}>
+                                <input type="hidden" name="roundId" value={round.id} />
+                                <button
+                                  data-preloader="on"
+                                  type="submit"
+                                  className="rounded-lg border border-yellow-400/70 px-3 py-1.5 text-xs font-medium text-yellow-100 transition hover:bg-red-800"
+                                >
+                                  Close round
+                                </button>
+                              </form>
+                            ) : null}
+
+                            <form action={startNewRound}>
+                              <input type="hidden" name="submissionId" value={round.submission.id} />
+                              <button
+                                data-preloader="on"
+                                type="submit"
+                                className="rounded-lg bg-yellow-400 px-3 py-1.5 text-xs font-semibold text-red-950 transition hover:bg-yellow-300"
+                              >
+                                Start next round
+                              </button>
+                            </form>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
               </section>
             ) : null}
 
@@ -250,14 +623,49 @@ export default async function ReviewsManagementPage() {
                       <p className="mt-1 text-xs text-yellow-200/80">
                         Reviewer: {review.reviewer.name || review.reviewer.email} · Status: {review.submission.status}
                       </p>
+                      <p className="mt-1 text-xs text-yellow-200/80">
+                        Round: {review.reviewRound?.roundNumber ?? "Unassigned"} · Round status: {review.reviewRound?.status ?? "-"}
+                      </p>
+                      {review.invitedAt ? (
+                        <p className="mt-1 text-xs text-yellow-200/80">
+                          Invited: {new Date(review.invitedAt).toLocaleDateString()}
+                          {review.acceptedAt ? ` · Accepted: ${new Date(review.acceptedAt).toLocaleDateString()}` : ""}
+                          {review.declinedAt ? ` · Declined: ${new Date(review.declinedAt).toLocaleDateString()}` : ""}
+                        </p>
+                      ) : null}
                     </div>
 
                     <span className="rounded-full bg-red-800 px-2.5 py-1 text-xs font-medium text-yellow-100">
-                      {review.submittedAt ? "Submitted" : "Pending"}
+                      {review.submittedAt ? "Submitted" : review.declinedAt ? "Declined" : review.acceptedAt ? "Accepted" : "Pending"}
                     </span>
                   </div>
 
-                  {role === "REVIEWER" ? (
+                  {role === "REVIEWER" && !review.acceptedAt && !review.declinedAt && !review.submittedAt ? (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <form action={acceptInvitation}>
+                        <input type="hidden" name="reviewId" value={review.id} />
+                        <button
+                          data-preloader="on"
+                          type="submit"
+                          className="rounded-lg bg-yellow-400 px-4 py-2 text-sm font-semibold text-red-950 transition hover:bg-yellow-300"
+                        >
+                          Accept invitation
+                        </button>
+                      </form>
+                      <form action={declineInvitation}>
+                        <input type="hidden" name="reviewId" value={review.id} />
+                        <button
+                          data-preloader="on"
+                          type="submit"
+                          className="rounded-lg border border-yellow-400/70 px-4 py-2 text-sm font-medium text-yellow-100 transition hover:bg-red-800"
+                        >
+                          Decline invitation
+                        </button>
+                      </form>
+                    </div>
+                  ) : null}
+
+                  {role === "REVIEWER" && review.acceptedAt && !review.submittedAt ? (
                     <form action={submitReview} className="mt-4 grid gap-3 sm:grid-cols-2">
                       <input type="hidden" name="reviewId" value={review.id} />
 

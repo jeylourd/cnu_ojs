@@ -32,6 +32,53 @@ enum ReviewRecommendation {
   REJECT
 }
 
+enum ReviewRoundStatus {
+  OPEN
+  CLOSED
+}
+
+enum ContributorRole {
+  AUTHOR
+  TRANSLATOR
+  EDITOR
+}
+
+enum GalleyType {
+  PDF
+  HTML
+  XML
+  EPUB
+  OTHER
+}
+
+enum NotificationType {
+  SUBMISSION_CREATED
+  REVIEW_ASSIGNED
+  REVIEW_SUBMITTED
+  DECISION_MADE
+  REVISION_REQUESTED
+  MANUSCRIPT_ACCEPTED
+  MANUSCRIPT_REJECTED
+  ISSUE_PUBLISHED
+  ANNOUNCEMENT_POSTED
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String           @db.Text
+  link      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
+}
+
 model User {
   id              String       @id @default(cuid())
   email           String       @unique
@@ -40,6 +87,8 @@ model User {
   role            UserRole     @default(AUTHOR)
   emailVerified   DateTime?
   image           String?
+  affiliation     String?
+  orcid           String?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   submissions     Submission[] @relation("AuthorSubmissions")
@@ -47,6 +96,7 @@ model User {
   managedJournals Journal[]    @relation("JournalEditor")
   decisionsMade   EditorialDecision[]
   announcementsCreated Announcement[] @relation("AnnouncementAuthor")
+  notifications   Notification[]
   accounts        Account[]
   sessions        Session[]
 }
@@ -64,6 +114,8 @@ model Journal {
   submissions  Submission[]
   issues       Issue[]
   announcements Announcement[]
+  settings     JournalSettings?
+  customPages  CustomPage[]
 }
 
 model Announcement {
@@ -94,13 +146,20 @@ model Submission {
   manuscriptUrl  String?
   status         SubmissionStatus  @default(DRAFT)
   submittedAt    DateTime?
+  doi            String?           @unique
+  funding        String?
+  license        String?
+  language       String?           @default("en")
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   journal        Journal           @relation(fields: [journalId], references: [id])
   author         User              @relation("AuthorSubmissions", fields: [authorId], references: [id])
   issue          Issue?            @relation(fields: [issueId], references: [id], onDelete: SetNull)
   reviews        Review[]
+  reviewRounds   ReviewRound[]
   decisions      EditorialDecision[]
+  contributors   Contributor[]
+  galleys        Galley[]
 }
 
 model Issue {
@@ -111,6 +170,7 @@ model Issue {
   year        Int
   title       String?
   featuredImageUrl String?
+  doi         String?      @unique
   publishedAt DateTime?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -141,6 +201,11 @@ model Review {
   id              String                @id @default(cuid())
   submissionId    String
   reviewerId      String
+  reviewRoundId   String?
+  invitedAt       DateTime?
+  acceptedAt      DateTime?
+  declinedAt      DateTime?
+  dueAt           DateTime?
   commentsToAuthor String?
   commentsToEditor String?
   recommendation  ReviewRecommendation?
@@ -150,8 +215,100 @@ model Review {
   updatedAt       DateTime              @updatedAt
   submission      Submission            @relation(fields: [submissionId], references: [id])
   reviewer        User                  @relation(fields: [reviewerId], references: [id])
+  reviewRound     ReviewRound?          @relation(fields: [reviewRoundId], references: [id], onDelete: Cascade)
 
-  @@unique([submissionId, reviewerId])
+  @@unique([submissionId, reviewerId, reviewRoundId])
+}
+
+model ReviewRound {
+  id          String            @id @default(cuid())
+  submissionId String
+  roundNumber Int
+  status      ReviewRoundStatus @default(OPEN)
+  startedAt   DateTime          @default(now())
+  closedAt    DateTime?
+  dueAt       DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  reviews    Review[]
+
+  @@unique([submissionId, roundNumber])
+  @@index([submissionId, status])
+}
+
+model Contributor {
+  id           String          @id @default(cuid())
+  submissionId String
+  givenName    String
+  familyName   String
+  email        String?
+  affiliation  String?
+  orcid        String?
+  role         ContributorRole @default(AUTHOR)
+  isPrimary    Boolean         @default(false)
+  sequence     Int             @default(0)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId, sequence])
+}
+
+model Galley {
+  id           String     @id @default(cuid())
+  submissionId String
+  label        String
+  type         GalleyType @default(PDF)
+  fileUrl      String
+  locale       String?    @default("en")
+  sequence     Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId, sequence])
+}
+
+model JournalSettings {
+  id                  String   @id @default(cuid())
+  journalId           String   @unique
+  primaryColor        String?  @default("#991b1b")
+  accentColor         String?  @default("#fbbf24")
+  logo                String?
+  favicon             String?
+  headerImage         String?
+  footerText          String?
+  aboutText           String?
+  contactEmail        String?
+  supportedLanguages  String[] @default(["en"])
+  defaultLanguage     String   @default("en")
+  enableSubmissions   Boolean  @default(true)
+  enableAnnouncements Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  journal Journal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+}
+
+model CustomPage {
+  id        String   @id @default(cuid())
+  journalId String
+  slug      String
+  title     String
+  content   String   @db.Text
+  sequence  Int      @default(0)
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  journal Journal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  @@unique([journalId, slug])
+  @@index([journalId, sequence])
 }
 
 model Account {

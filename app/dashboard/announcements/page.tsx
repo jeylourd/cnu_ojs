@@ -186,7 +186,7 @@ export default async function DashboardAnnouncementsPage({ searchParams }: Dashb
         </header>
 
         <section className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
-          <DashboardSidebar role={session.user.role} />
+          <DashboardSidebar role={session.user.role} currentPath="/dashboard/announcements" />
 
           <div className="space-y-8">
             <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
@@ -285,8 +285,8 @@ export default async function DashboardAnnouncementsPage({ searchParams }: Dashb
               {announcements.map((announcement) => (
                 <article key={announcement.id} className="rounded-xl border border-yellow-500/30 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-base font-semibold text-yellow-50">{announcement.title}</h3>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base font-semibold text-yellow-50 break-words">{announcement.title}</h3>
                       <p className="mt-1 text-xs text-yellow-200/80">
                         Journal: {announcement.journal.name} · By {announcement.createdBy.name || announcement.createdBy.email}
                       </p>
@@ -309,7 +309,7 @@ export default async function DashboardAnnouncementsPage({ searchParams }: Dashb
                     </form>
                   </div>
 
-                  <p className="mt-3 text-sm leading-6 text-yellow-100/85 whitespace-pre-line">{announcement.content}</p>
+                  <p className="mt-3 text-sm leading-6 text-yellow-100/85 whitespace-pre-line break-words">{announcement.content}</p>
 
                   <div className="mt-3">
                     <Link

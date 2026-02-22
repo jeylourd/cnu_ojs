@@ -8,7 +8,9 @@ import { randomUUID } from "node:crypto";
 
 import { auth } from "@/auth";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
+import { ContributorFields } from "@/components/submissions/ContributorFields";
 import { prisma } from "@/lib/prisma";
+import { sendSubmissionNotificationEmail } from "@/lib/mailer";
 
 type SubmissionStatusValue =
   | "DRAFT"
@@ -175,6 +177,10 @@ export default async function SubmissionManagementPage() {
     const title = String(formData.get("title") ?? "").trim();
     const abstract = String(formData.get("abstract") ?? "").trim();
     const keywordInput = String(formData.get("keywords") ?? "").trim();
+    const funding = String(formData.get("funding") ?? "").trim();
+    const license = String(formData.get("license") ?? "").trim();
+    const language = String(formData.get("language") ?? "en").trim();
+    const contributorsData = String(formData.get("contributorsData") ?? "").trim();
     const manuscriptFile = formData.get("manuscriptFile");
 
     if (!journalId || !title || !abstract) {
@@ -185,6 +191,25 @@ export default async function SubmissionManagementPage() {
       .split(",")
       .map((keyword) => keyword.trim())
       .filter(Boolean);
+
+    let contributors: Array<{
+      givenName: string;
+      familyName: string;
+      email?: string;
+      affiliation?: string;
+      orcid?: string;
+      role: string;
+      isPrimary: boolean;
+      sequence: number;
+    }> = [];
+
+    try {
+      if (contributorsData) {
+        contributors = JSON.parse(contributorsData);
+      }
+    } catch {
+      contributors = [];
+    }
 
     let manuscriptUrl: string | null = null;
 
@@ -224,10 +249,60 @@ export default async function SubmissionManagementPage() {
         abstract,
         keywords,
         manuscriptUrl,
+        funding: funding || null,
+        license: license || null,
+        language,
         status: "SUBMITTED",
         submittedAt: new Date(),
+        contributors: {
+          create: contributors.map((c, idx) => ({
+            givenName: c.givenName,
+            familyName: c.familyName,
+            email: c.email || null,
+            affiliation: c.affiliation || null,
+            orcid: c.orcid || null,
+            role: c.role as "AUTHOR" | "TRANSLATOR" | "EDITOR",
+            isPrimary: c.isPrimary,
+            sequence: idx,
+          })),
+        },
       },
     });
+
+    // Get the journal and editors for notifications
+    const journal = await prisma.journal.findUnique({
+      where: { id: journalId },
+      include: {
+        editor: true,
+      },
+    });
+
+    if (journal) {
+      // Create notification for the journal editor
+      await prisma.notification.create({
+        data: {
+          userId: journal.editorId,
+          type: "SUBMISSION_CREATED",
+          title: "New Submission",
+          message: `New submission "${title}" by ${currentSession.user.name} to ${journal.name}`,
+          link: "/dashboard/submissions",
+        },
+      });
+
+      // Send email to the editor
+      try {
+        await sendSubmissionNotificationEmail(
+          journal.editor.email,
+          journal.editor.name,
+          title,
+          currentSession.user.name,
+          journal.name,
+          journalId
+        );
+      } catch (error) {
+        console.error("[Submission] Failed to send notification email:", error);
+      }
+    }
 
     revalidatePath("/dashboard/submissions");
   }
@@ -286,7 +361,7 @@ export default async function SubmissionManagementPage() {
         </header>
 
         <section className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
-          <DashboardSidebar role={session.user.role} />
+          <DashboardSidebar role={session.user.role} currentPath="/dashboard/submissions" />
 
           <div className="space-y-8">
             {canCreateSubmission ? (
@@ -343,6 +418,41 @@ export default async function SubmissionManagementPage() {
                     placeholder="nursing, care, education"
                   />
                 </label>
+
+                <label className="block text-sm font-medium text-yellow-100">
+                  Language
+                  <select
+                    name="language"
+                    defaultValue="en"
+                    className="mt-1 w-full rounded-lg border border-yellow-500/40 bg-red-950 px-3 py-2 text-sm text-yellow-100 outline-none ring-yellow-400 focus:ring-2"
+                  >
+                    <option value="en">English</option>
+                    <option value="tl">Filipino</option>
+                    <option value="ceb">Cebuano</option>
+                  </select>
+                </label>
+
+                <label className="block text-sm font-medium text-yellow-100 sm:col-span-2">
+                  Funding (optional)
+                  <textarea
+                    name="funding"
+                    rows={2}
+                    className="mt-1 w-full rounded-lg border border-yellow-500/40 bg-red-950 px-3 py-2 text-sm text-yellow-100 outline-none ring-yellow-400 focus:ring-2"
+                    placeholder="Funding sources, grant numbers, or acknowledgments"
+                  />
+                </label>
+
+                <label className="block text-sm font-medium text-yellow-100 sm:col-span-2">
+                  License (optional)
+                  <input
+                    type="text"
+                    name="license"
+                    className="mt-1 w-full rounded-lg border border-yellow-500/40 bg-red-950 px-3 py-2 text-sm text-yellow-100 outline-none ring-yellow-400 focus:ring-2"
+                    placeholder="CC BY 4.0, All Rights Reserved, etc."
+                  />
+                </label>
+
+                <ContributorFields />
 
                 <label className="block text-sm font-medium text-yellow-100">
                   Upload manuscript (PDF/DOC/DOCX)

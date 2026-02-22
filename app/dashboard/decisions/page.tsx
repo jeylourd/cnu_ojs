@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { prisma } from "@/lib/prisma";
+import { createNotification } from "@/lib/notifications";
+import { sendDecisionNotificationEmail } from "@/lib/mailer";
 
 type DecisionStatus = "REVISION_REQUIRED" | "ACCEPTED" | "REJECTED";
 
@@ -76,6 +78,15 @@ export default async function EditorialDecisionPage() {
       return;
     }
 
+    // Get submission details before updating
+    const submission = await prisma.submission.findUnique({
+      where: { id: submissionId },
+      include: {
+        author: true,
+        journal: true,
+      },
+    });
+
     await prisma.$transaction([
       prisma.submission.update({
         where: { id: submissionId },
@@ -91,6 +102,51 @@ export default async function EditorialDecisionPage() {
         },
       }),
     ]);
+
+    if (submission) {
+      // Create notification for the author
+      const notificationType =
+        status === "ACCEPTED"
+          ? "MANUSCRIPT_ACCEPTED"
+          : status === "REJECTED"
+            ? "MANUSCRIPT_REJECTED"
+            : "REVISION_REQUESTED";
+
+      const notificationTitle =
+        status === "ACCEPTED"
+          ? "Manuscript Accepted"
+          : status === "REJECTED"
+            ? "Manuscript Rejected"
+            : "Revision Required";
+
+      const notificationMessage =
+        status === "ACCEPTED"
+          ? `Your manuscript "${submission.title}" has been accepted for publication!`
+          : status === "REJECTED"
+            ? `Your manuscript "${submission.title}" has been rejected.`
+            : `Your manuscript "${submission.title}" requires revisions.`;
+
+      await createNotification({
+        userId: submission.authorId,
+        type: notificationType,
+        title: notificationTitle,
+        message: notificationMessage,
+        link: "/dashboard/submissions",
+      });
+
+      // Send email notification
+      try {
+        await sendDecisionNotificationEmail(
+          submission.author.email,
+          submission.author.name,
+          submission.title,
+          notificationTitle,
+          notes || "No additional comments provided."
+        );
+      } catch (error) {
+        console.error("[Decision] Failed to send decision email:", error);
+      }
+    }
 
     revalidatePath("/dashboard/decisions");
     revalidatePath("/dashboard/submissions");
@@ -120,7 +176,7 @@ export default async function EditorialDecisionPage() {
         </header>
 
         <section className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
-          <DashboardSidebar role={session.user.role} />
+          <DashboardSidebar role={session.user.role} currentPath="/dashboard/decisions" />
 
           <div>
             <section className="rounded-2xl border border-yellow-500/40 bg-red-900 p-6 shadow-sm">
@@ -142,7 +198,7 @@ export default async function EditorialDecisionPage() {
                           Journal: {submission.journal.name} · Author: {submission.author.name || submission.author.email}
                         </p>
                         <p className="mt-1 text-xs text-yellow-200/80">
-                          Current status: {submission.status} · Submitted reviews: {submittedReviews.length}
+                          Current status: {submission.status} · Submitted reviews (all rounds): {submittedReviews.length}
                         </p>
                       </div>
 
